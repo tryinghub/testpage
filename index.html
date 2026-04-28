@@ -1116,10 +1116,10 @@
     const sprElectrode = makeSprite(cdn(101));
 
     // Boosts
-    // Jolteon (#135) – slow-mo (slows obstacles, easier to dodge)
+    // Slowpoke (#79) – slow-mo (slows obstacles, easier to dodge)
     // Chansey (#113) – shield (absorb one hit)
     // Gengar (#94)   – ghost mode (pass through obstacles)
-    const sprJolteon = makeSprite(cdn(135));
+    const sprJolteon = makeSprite(cdn(79));
     const sprChansey = makeSprite(cdn(113));
     const sprGengar  = makeSprite(cdn(94));
 
@@ -1139,18 +1139,18 @@
     // Each obstacle y is GROUND (ground) or GROUND - flyHeight (flying)
     // We'll pick from a weighted pool
     const OB_TYPES = [
-      { id:'maractus',  w:72, h:96, spr:()=>sprMaractus,  fly:false },
-      { id:'golem',     w:80, h:72, spr:()=>sprGolem,     fly:false },
-      { id:'voltorb',   w:60, h:60, spr:()=>sprVoltorb,   fly:false },
-      { id:'electrode', w:68, h:68, spr:()=>sprElectrode, fly:false },
-      { id:'pidgey',    w:68, h:60, spr:()=>sprPidgey,    fly:true, flyH:()=>80+Math.random()*25 },
-      { id:'pidgeotto', w:76, h:68, spr:()=>sprPidgeotto, fly:true, flyH:()=>88+Math.random()*30 },
-      { id:'pidgeot',   w:88, h:80, spr:()=>sprPidgeot,   fly:true, flyH:()=>75+Math.random()*35 },
+      { id:'maractus',  w:56, h:72, spr:()=>sprMaractus,  fly:false },
+      { id:'golem',     w:60, h:56, spr:()=>sprGolem,     fly:false },
+      { id:'voltorb',   w:48, h:48, spr:()=>sprVoltorb,   fly:false },
+      { id:'electrode', w:52, h:52, spr:()=>sprElectrode, fly:false },
+      { id:'pidgey',    w:52, h:48, spr:()=>sprPidgey,    fly:true, flyH:()=>80+Math.random()*25 },
+      { id:'pidgeotto', w:60, h:52, spr:()=>sprPidgeotto, fly:true, flyH:()=>88+Math.random()*30 },
+      { id:'pidgeot',   w:68, h:60, spr:()=>sprPidgeot,   fly:true, flyH:()=>75+Math.random()*35 },
     ];
 
     // ── BOOST TYPES ──
     const BOOST_TYPES = [
-      { id:'jolteon',  spr:()=>sprJolteon,  color:'#ffe066', label:'⚡ JOLTEON SLOW-MO!', duration:300 },
+      { id:'jolteon',  spr:()=>sprJolteon,  color:'#ffb3de', label:'🌸 SLOWPOKE BOOST!', duration:300 },
       { id:'chansey',  spr:()=>sprChansey,  color:'#ff80b0', label:'💗 CHANSEY SHIELD!',  duration:400 },
       { id:'gengar',   spr:()=>sprGengar,   color:'#9060c0', label:'👻 GENGAR GHOST!',    duration:350 },
     ];
@@ -1253,9 +1253,9 @@
       if (m.shielded) {
         ctx.shadowColor = '#ff80b0'; ctx.shadowBlur = 18;
       }
-      // Jolteon slow-mo aura
+      // Slowpoke boost aura
       if (boostType === 'jolteon' && boostActive) {
-        ctx.shadowColor = '#ffe066'; ctx.shadowBlur = 20;
+        ctx.shadowColor = '#ffb3de'; ctx.shadowBlur = 20;
       }
 
       // Pick sprite: boost pokemon while active, meowth/persian otherwise
@@ -1280,7 +1280,7 @@
       if (boostActive) {
         const bt = BOOST_TYPES.find(b=>b.id===boostType) || {duration:300};
         const prog = boostTimer / bt.duration;
-        const ringColor = boostType==='jolteon'?'#ffe066':boostType==='chansey'?'#ff80b0':'#9060c0';
+        const ringColor = boostType==='jolteon'?'#ffb3de':boostType==='chansey'?'#ff80b0':'#9060c0';
         ctx.strokeStyle = ringColor;
         ctx.lineWidth = 2.5;
         ctx.beginPath();
@@ -1498,7 +1498,7 @@
         // Speed: starts at 5, cap at 9, slower ramp
         speed = Math.min(9, 5 + score / 1200);
 
-        // Jolteon boost applies slow-mo (obstacles move at half speed)
+        // Slowpoke boost applies slow-mo (obstacles move at half speed)
         const displaySpeed = (boostType==='jolteon') ? speed * 0.45 : speed;
 
         // Physics
