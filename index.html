@@ -1081,8 +1081,8 @@
     const W = canvas.width, H = canvas.height;
     const GROUND = H - 40;
 
-    // CDN helper
-    const cdn = n => `https://cdn.poketwo.net/images/${n}.png`;
+    // CDN helper — use PokeAPI sprites (CORS-friendly)
+    const cdn = n => `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${n}.png`;
 
     let score = 0, hiScore = 0, coins = 0;
     let gameState = 'idle';
@@ -1116,12 +1116,12 @@
     const sprElectrode = makeSprite(cdn(101));
 
     // Boosts
-    // Rapidash (#78) – speed boost (temporary, controlled)
-    // Chansey (#113) – shield
-    // Gengar (#94) – ghost mode (pass through 1 obstacle)
-    const sprRapidash = makeSprite(cdn(78));
-    const sprChansey  = makeSprite(cdn(113));
-    const sprGengar   = makeSprite(cdn(94));
+    // Jolteon (#135) – slow-mo (slows obstacles, easier to dodge)
+    // Chansey (#113) – shield (absorb one hit)
+    // Gengar (#94)   – ghost mode (pass through obstacles)
+    const sprJolteon = makeSprite(cdn(135));
+    const sprChansey = makeSprite(cdn(113));
+    const sprGengar  = makeSprite(cdn(94));
 
     const meowth = {
       x: 80, y: GROUND,
@@ -1150,7 +1150,7 @@
 
     // ── BOOST TYPES ──
     const BOOST_TYPES = [
-      { id:'rapidash', spr:()=>sprRapidash, color:'#ff8c00', label:'⚡ RAPIDASH BOOST!',  duration:300 },
+      { id:'jolteon',  spr:()=>sprJolteon,  color:'#ffe066', label:'⚡ JOLTEON SLOW-MO!', duration:300 },
       { id:'chansey',  spr:()=>sprChansey,  color:'#ff80b0', label:'💗 CHANSEY SHIELD!',  duration:400 },
       { id:'gengar',   spr:()=>sprGengar,   color:'#9060c0', label:'👻 GENGAR GHOST!',    duration:350 },
     ];
@@ -1253,12 +1253,24 @@
       if (m.shielded) {
         ctx.shadowColor = '#ff80b0'; ctx.shadowBlur = 18;
       }
+      // Jolteon slow-mo aura
+      if (boostType === 'jolteon' && boostActive) {
+        ctx.shadowColor = '#ffe066'; ctx.shadowBlur = 20;
+      }
 
-      const spr = isDucking ? sprPersian : sprMeowth;
+      // Pick sprite: boost pokemon while active, meowth/persian otherwise
+      let spr;
+      if (boostActive && boostType) {
+        const bt = BOOST_TYPES.find(b => b.id === boostType);
+        spr = bt ? bt.spr() : (isDucking ? sprPersian : sprMeowth);
+      } else {
+        spr = isDucking ? sprPersian : sprMeowth;
+      }
+
       if (spr._loaded()) {
         ctx.drawImage(spr, -spriteW/2, -spriteH/2, spriteW, spriteH);
       } else {
-        ctx.fillStyle = '#f5c842';
+        ctx.fillStyle = boostActive ? (BOOST_TYPES.find(b=>b.id===boostType)||{color:'#f5c842'}).color : '#f5c842';
         ctx.beginPath(); ctx.arc(0,0,20,0,Math.PI*2); ctx.fill();
       }
 
@@ -1266,8 +1278,10 @@
 
       // Boost status ring
       if (boostActive) {
-        const prog = boostTimer / (BOOST_TYPES.find(b=>b.id===boostType)||{duration:300}).duration;
-        ctx.strokeStyle = boostType==='rapidash'?'#ff8c00':boostType==='chansey'?'#ff80b0':'#9060c0';
+        const bt = BOOST_TYPES.find(b=>b.id===boostType) || {duration:300};
+        const prog = boostTimer / bt.duration;
+        const ringColor = boostType==='jolteon'?'#ffe066':boostType==='chansey'?'#ff80b0':'#9060c0';
+        ctx.strokeStyle = ringColor;
         ctx.lineWidth = 2.5;
         ctx.beginPath();
         ctx.arc(0, 0, spriteW*0.55, -Math.PI/2, -Math.PI/2 + prog*Math.PI*2);
@@ -1324,8 +1338,9 @@
       boostActive = true;
       boostType = id;
       boostTimer = duration;
-      if (id === 'chansey')  { meowth.shielded = true; }
-      if (id === 'gengar')   { meowth.ghost    = true; }
+      if (id === 'chansey') { meowth.shielded = true; }
+      if (id === 'gengar')  { meowth.ghost    = true; }
+      // jolteon: slow-mo — obstacles move at half speed (handled in displaySpeed)
       boostLabelTimer = 120;
     }
 
@@ -1348,14 +1363,18 @@
     }
 
     // ── COLLISION ──
+    // a and b both use bottom-origin Y (y = bottom edge, y - h = top edge)
     function collides(a, b) {
-      const pad = 9;
-      return (
-        a.x + pad < b.x + b.w - pad &&
-        a.x + a.w - pad > b.x + pad &&
-        (a.y - a.h) + pad < b.y &&
-        a.y - pad > b.y - b.h
-      );
+      const pad = 8;
+      const aRight  = a.x + a.w - pad;
+      const aLeft   = a.x + pad;
+      const aBottom = a.y - pad;
+      const aTop    = a.y - a.h + pad;
+      const bRight  = b.x + b.w - pad;
+      const bLeft   = b.x + pad;
+      const bBottom = b.y - pad;
+      const bTop    = b.y - b.h + pad;
+      return aRight > bLeft && aLeft < bRight && aBottom > bTop && aTop < bBottom;
     }
 
     // ── BACKGROUND ──
@@ -1443,6 +1462,7 @@
       spawnTimer=0; spawnInterval=100;
       obstacles=[]; coinItems=[]; particles=[]; boostItems=[];
       boostActive=false; boostType=null; boostTimer=0;
+      boostSpawnTimer=0; boostSpawnInterval = 420 + Math.floor(Math.random()*200);
       meowth.y=GROUND; meowth.vy=0; meowth.jumping=false;
       meowth.ducking=false; meowth.shielded=false; meowth.ghost=false;
       gameState='running';
@@ -1464,6 +1484,7 @@
 
     // ── MAIN LOOP ──
     let boostSpawnTimer = 0;
+    let boostSpawnInterval = 420 + Math.floor(Math.random() * 200); // fixed threshold, reset each time
 
     function loop() {
       ctx.clearRect(0,0,W,H);
@@ -1477,8 +1498,8 @@
         // Speed: starts at 5, cap at 9, slower ramp
         speed = Math.min(9, 5 + score / 1200);
 
-        // Rapidash boost applies temporary speed surge
-        const displaySpeed = (boostType==='rapidash') ? Math.min(speed+2.5, 11) : speed;
+        // Jolteon boost applies slow-mo (obstacles move at half speed)
+        const displaySpeed = (boostType==='jolteon') ? speed * 0.45 : speed;
 
         // Physics
         meowth.vy += meowth.gravity;
@@ -1498,9 +1519,10 @@
 
         // Spawn boosts occasionally
         boostSpawnTimer++;
-        if (boostSpawnTimer >= 320 + Math.random()*120) {
+        if (boostSpawnTimer >= boostSpawnInterval) {
           spawnBoostItem();
-          boostSpawnTimer=0;
+          boostSpawnTimer = 0;
+          boostSpawnInterval = 420 + Math.floor(Math.random() * 200); // randomize next interval
         }
 
         // Boost tick
