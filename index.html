@@ -1074,6 +1074,24 @@
 </footer>
 
 <script>
+  // ── TAB SWITCHER ──
+  function switchTab(bot, btnEl) {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    btnEl.classList.add('active');
+    document.getElementById('tab-' + bot).classList.add('active');
+  }
+
+  // ── ACCORDION TOGGLE ──
+  function toggleSection(headerEl) {
+    const body  = headerEl.nextElementSibling;
+    const arrow = headerEl.querySelector('.ch-arrow');
+    const isOpen = body.classList.toggle('open');
+    if (arrow) arrow.style.transform = isOpen ? 'rotate(180deg)' : '';
+  }
+</script>
+
+<script>
   // ── MEOWTH RUNNER GAME (Enhanced) ──
   (function() {
     const canvas = document.getElementById('game-canvas');
