@@ -1,0 +1,937 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Meowth Bots</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0d0d0f;
+      --surface: #131316;
+      --surface2: #1a1a1f;
+      --border: #252530;
+      --text: #e8e8f0;
+      --muted: #6b6b80;
+      --accent-namer: #f5a623;
+      --accent-mini: #5b8cff;
+      --tag-bg: #1e1e28;
+      --radius: 12px;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Syne', sans-serif;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* ── NOISE OVERLAY ── */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+      pointer-events: none;
+      z-index: 0;
+      opacity: 0.4;
+    }
+
+    /* ── NAV ── */
+    nav {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 18px 48px;
+      background: rgba(13,13,15,0.85);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .nav-logo {
+      font-size: 1.1rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      color: var(--text);
+      text-decoration: none;
+    }
+
+    .nav-links {
+      display: flex;
+      gap: 32px;
+      list-style: none;
+    }
+
+    .nav-links a {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--muted);
+      text-decoration: none;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      transition: color 0.2s;
+    }
+
+    .nav-links a:hover { color: var(--text); }
+
+    /* ── HERO ── */
+    .hero {
+      position: relative;
+      padding: 120px 48px 100px;
+      max-width: 900px;
+      margin: 0 auto;
+      z-index: 1;
+    }
+
+    .hero-eyebrow {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.75rem;
+      color: var(--muted);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      margin-bottom: 24px;
+    }
+
+    .hero h1 {
+      font-size: clamp(3rem, 7vw, 5.5rem);
+      font-weight: 800;
+      line-height: 1.0;
+      letter-spacing: -0.04em;
+      margin-bottom: 28px;
+    }
+
+    .hero h1 span.highlight-namer { color: var(--accent-namer); }
+    .hero h1 span.highlight-mini  { color: var(--accent-mini); }
+
+    .hero-desc {
+      font-size: 1.1rem;
+      color: var(--muted);
+      max-width: 520px;
+      line-height: 1.7;
+      font-weight: 400;
+    }
+
+    .hero-actions {
+      display: flex;
+      gap: 16px;
+      margin-top: 48px;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 24px;
+      border-radius: var(--radius);
+      font-family: 'Syne', sans-serif;
+      font-size: 0.9rem;
+      font-weight: 700;
+      text-decoration: none;
+      cursor: pointer;
+      border: none;
+      transition: opacity 0.2s, transform 0.15s;
+    }
+
+    .btn:hover { opacity: 0.85; transform: translateY(-1px); }
+
+    .btn-namer { background: var(--accent-namer); color: #0d0d0f; }
+    .btn-mini  { background: var(--accent-mini);  color: #fff; }
+    .btn-ghost {
+      background: transparent;
+      color: var(--muted);
+      border: 1px solid var(--border);
+    }
+    .btn-ghost:hover { color: var(--text); border-color: var(--muted); }
+
+    /* ── SECTION ── */
+    section {
+      position: relative;
+      z-index: 1;
+      max-width: 1080px;
+      margin: 0 auto;
+      padding: 80px 48px;
+    }
+
+    .section-label {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.72rem;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 12px;
+    }
+
+    .section-title {
+      font-size: clamp(1.8rem, 3.5vw, 2.6rem);
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      margin-bottom: 48px;
+    }
+
+    /* ── BOT CARDS ── */
+    .bots-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+    }
+
+    .bot-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 40px;
+      position: relative;
+      overflow: hidden;
+      transition: border-color 0.2s, transform 0.2s;
+    }
+
+    .bot-card:hover { transform: translateY(-3px); }
+
+    .bot-card.namer { border-top: 3px solid var(--accent-namer); }
+    .bot-card.namer:hover { border-color: var(--accent-namer); }
+
+    .bot-card.mini { border-top: 3px solid var(--accent-mini); }
+    .bot-card.mini:hover { border-color: var(--accent-mini); }
+
+    .bot-card::before {
+      content: '';
+      position: absolute;
+      top: 0; right: 0;
+      width: 200px; height: 200px;
+      border-radius: 50%;
+      filter: blur(60px);
+      opacity: 0.07;
+      pointer-events: none;
+    }
+
+    .bot-card.namer::before { background: var(--accent-namer); }
+    .bot-card.mini::before  { background: var(--accent-mini); }
+
+    .bot-icon {
+      width: 52px;
+      height: 52px;
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.5rem;
+      margin-bottom: 20px;
+    }
+
+    .namer .bot-icon { background: rgba(245,166,35,0.12); }
+    .mini  .bot-icon { background: rgba(91,140,255,0.12); }
+
+    .bot-name {
+      font-size: 1.5rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      margin-bottom: 10px;
+    }
+
+    .namer .bot-name { color: var(--accent-namer); }
+    .mini  .bot-name { color: var(--accent-mini); }
+
+    .bot-tagline {
+      font-size: 0.9rem;
+      color: var(--muted);
+      line-height: 1.6;
+      margin-bottom: 28px;
+    }
+
+    .feature-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-bottom: 32px;
+    }
+
+    .feature-list li {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      font-size: 0.88rem;
+      color: var(--text);
+      line-height: 1.5;
+    }
+
+    .feature-list li .dot {
+      flex-shrink: 0;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      margin-top: 7px;
+    }
+
+    .namer .dot { background: var(--accent-namer); }
+    .mini  .dot { background: var(--accent-mini); }
+
+    /* ── FEATURES GRID ── */
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+    }
+
+    .feature-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 28px 24px;
+      transition: border-color 0.2s;
+    }
+
+    .feature-card:hover { border-color: #3a3a50; }
+
+    .feature-icon {
+      font-size: 1.4rem;
+      margin-bottom: 14px;
+    }
+
+    .feature-card h3 {
+      font-size: 0.95rem;
+      font-weight: 700;
+      margin-bottom: 8px;
+      letter-spacing: -0.01em;
+    }
+
+    .feature-card p {
+      font-size: 0.82rem;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+
+    /* ── COMMANDS TABLE ── */
+    .commands-section {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      overflow: hidden;
+      margin-bottom: 24px;
+    }
+
+    .commands-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 20px 28px;
+      border-bottom: 1px solid var(--border);
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .commands-header:hover { background: var(--surface2); }
+
+    .commands-header .ch-icon { font-size: 1.1rem; }
+
+    .commands-header h3 {
+      font-size: 0.95rem;
+      font-weight: 700;
+      flex: 1;
+    }
+
+    .commands-header .ch-count {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.72rem;
+      color: var(--muted);
+      background: var(--tag-bg);
+      padding: 3px 10px;
+      border-radius: 20px;
+    }
+
+    .ch-arrow {
+      color: var(--muted);
+      font-size: 0.8rem;
+      transition: transform 0.2s;
+    }
+
+    .commands-body {
+      display: none;
+      padding: 12px 28px 20px;
+    }
+
+    .commands-body.open { display: block; }
+
+    .cmd-row {
+      display: grid;
+      grid-template-columns: 200px 1fr;
+      gap: 16px;
+      padding: 12px 0;
+      border-bottom: 1px solid var(--border);
+      align-items: start;
+    }
+
+    .cmd-row:last-child { border-bottom: none; }
+
+    .cmd-name {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.78rem;
+      color: var(--text);
+      background: var(--tag-bg);
+      padding: 3px 10px;
+      border-radius: 6px;
+      display: inline-block;
+    }
+
+    .cmd-desc {
+      font-size: 0.82rem;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    .cmd-desc .alias {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.72rem;
+      color: #4a4a60;
+      margin-top: 3px;
+    }
+
+    /* ── DIVIDER ── */
+    .divider {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 0 48px;
+    }
+
+    /* ── FOOTER ── */
+    footer {
+      position: relative;
+      z-index: 1;
+      border-top: 1px solid var(--border);
+      padding: 40px 48px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: gap;
+    }
+
+    .footer-left {
+      font-size: 0.85rem;
+      color: var(--muted);
+    }
+
+    .footer-links {
+      display: flex;
+      gap: 24px;
+      list-style: none;
+    }
+
+    .footer-links a {
+      font-size: 0.82rem;
+      color: var(--muted);
+      text-decoration: none;
+      transition: color 0.2s;
+    }
+
+    .footer-links a:hover { color: var(--text); }
+
+    /* ── TABS ── */
+    .tabs {
+      display: flex;
+      gap: 4px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 4px;
+      margin-bottom: 32px;
+      width: fit-content;
+    }
+
+    .tab-btn {
+      padding: 8px 20px;
+      border-radius: 8px;
+      border: none;
+      background: transparent;
+      color: var(--muted);
+      font-family: 'Syne', sans-serif;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s;
+    }
+
+    .tab-btn.active {
+      background: var(--surface2);
+      color: var(--text);
+    }
+
+    .tab-btn.active.namer-tab { color: var(--accent-namer); }
+    .tab-btn.active.mini-tab  { color: var(--accent-mini); }
+
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    /* ── ANIMATIONS ── */
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .hero, .bot-card, .feature-card {
+      animation: fadeUp 0.5s ease both;
+    }
+
+    .bot-card:nth-child(2) { animation-delay: 0.1s; }
+    .feature-card:nth-child(2) { animation-delay: 0.07s; }
+    .feature-card:nth-child(3) { animation-delay: 0.14s; }
+    .feature-card:nth-child(4) { animation-delay: 0.21s; }
+    .feature-card:nth-child(5) { animation-delay: 0.28s; }
+    .feature-card:nth-child(6) { animation-delay: 0.35s; }
+
+    /* ── RESPONSIVE ── */
+    @media (max-width: 768px) {
+      nav { padding: 16px 24px; }
+      .nav-links { display: none; }
+      .hero { padding: 80px 24px 60px; }
+      section { padding: 60px 24px; }
+      .bots-grid { grid-template-columns: 1fr; }
+      .features-grid { grid-template-columns: 1fr 1fr; }
+      .cmd-row { grid-template-columns: 1fr; }
+      footer { padding: 32px 24px; flex-direction: column; gap: 16px; }
+      .divider { margin: 0 24px; }
+    }
+
+    @media (max-width: 480px) {
+      .features-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <a href="#" class="nav-logo">🐱 Meowth Bots</a>
+  <ul class="nav-links">
+    <li><a href="#bots">Bots</a></li>
+    <li><a href="#features">Features</a></li>
+    <li><a href="#commands">Commands</a></li>
+    <li><a href="#links">Links</a></li>
+  </ul>
+</nav>
+
+<!-- HERO -->
+<div class="hero">
+  <p class="hero-eyebrow">// Pokétwo Discord Bots</p>
+  <h1>
+    <span class="highlight-namer">NamerMeowth</span><br>
+    &amp; <span class="highlight-mini">MiniMeowth</span>
+  </h1>
+  <p class="hero-desc">
+    Two powerful bots built for the Pokétwo community — from smart spawn prediction and incense management to breeding chains and shiny tracking.
+  </p>
+  <div class="hero-actions">
+    <a href="#bots" class="btn btn-namer">Explore Bots</a>
+    <a href="#commands" class="btn btn-ghost">View Commands</a>
+  </div>
+</div>
+
+<hr class="divider">
+
+<!-- BOTS OVERVIEW -->
+<section id="bots">
+  <p class="section-label">// The Bots</p>
+  <h2 class="section-title">Meet the duo</h2>
+
+  <div class="bots-grid">
+
+    <!-- NamerMeowth -->
+    <div class="bot-card namer">
+      <div class="bot-icon">🔮</div>
+      <div class="bot-name">NamerMeowth</div>
+      <p class="bot-tagline">Your all-in-one Pokétwo companion — predicts spawns, manages collections, and handles incense sessions automatically.</p>
+      <ul class="feature-list">
+        <li><span class="dot"></span>Dual AI model spawn prediction</li>
+        <li><span class="dot"></span>Collection pings & shiny hunt alerts</li>
+        <li><span class="dot"></span>Automatic incense channel management</li>
+        <li><span class="dot"></span>Type & region-based pings</li>
+        <li><span class="dot"></span>Starboard logging for rare catches</li>
+        <li><span class="dot"></span>Hint solver (all languages)</li>
+      </ul>
+    </div>
+
+    <!-- MiniMeowth -->
+    <div class="bot-card mini">
+      <div class="bot-icon">✨</div>
+      <div class="bot-name">MiniMeowth</div>
+      <p class="bot-tagline">Your Pokétwo breeding and collection toolkit — find breeding chains, track shinies, and manage your dex with style.</p>
+      <ul class="feature-list">
+        <li><span class="dot"></span>Smart breeding pair generator</li>
+        <li><span class="dot"></span>Egg move chain finder</li>
+        <li><span class="dot"></span>Shiny dex & event dex tracking</li>
+        <li><span class="dot"></span>Multi-inventory management (TripMax, TripZero, Duel)</li>
+        <li><span class="dot"></span>Custom dex image themes</li>
+        <li><span class="dot"></span>Visual stats card generator</li>
+      </ul>
+    </div>
+
+  </div>
+</section>
+
+<hr class="divider">
+
+<!-- FEATURES -->
+<section id="features">
+  <p class="section-label">// Why Use Them</p>
+  <h2 class="section-title">Built for serious players</h2>
+
+  <div class="features-grid">
+    <div class="feature-card">
+      <div class="feature-icon">🤖</div>
+      <h3>Dual Model AI</h3>
+      <p>Two CNN models run in parallel for every spawn — primary and secondary — delivering high-confidence predictions automatically.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">🔥</div>
+      <h3>Incense Automation</h3>
+      <p>Detects when an Incense is purchased and instantly restricts Pokétwo to the right channel — no manual work needed.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">🧬</div>
+      <h3>Breeding Chains</h3>
+      <p>Find the optimal breeding path to get any egg move on any Pokémon, automatically calculating the full chain for you.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">⭐</div>
+      <h3>Starboard Logging</h3>
+      <p>Automatically log shiny catches, high/low IV, Gigantamax, MissingNo, and milestone catches to dedicated channels.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">🎨</div>
+      <h3>Custom Dex Images</h3>
+      <p>Fully customizable shiny dex images with themes, colors, grids, borders, and a visual profile stats card.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">🔔</div>
+      <h3>Smart Pings</h3>
+      <p>Get pinged by collection, shiny hunt, Pokémon type, region, or role — with AFK mode to silence them when away.</p>
+    </div>
+  </div>
+</section>
+
+<hr class="divider">
+
+<!-- COMMANDS -->
+<section id="commands">
+  <p class="section-label">// Command Reference</p>
+  <h2 class="section-title">Commands</h2>
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <button class="tab-btn active namer-tab" onclick="switchTab('namer', this)">🔮 NamerMeowth</button>
+    <button class="tab-btn mini-tab"         onclick="switchTab('mini', this)">✨ MiniMeowth</button>
+  </div>
+
+  <!-- NamerMeowth Commands -->
+  <div class="tab-panel active" id="tab-namer">
+
+    <!-- Collection -->
+    <div class="commands-section">
+      <div class="commands-header" onclick="toggleSection(this)">
+        <span class="ch-icon">📦</span>
+        <h3>Collection</h3>
+        <span class="ch-count">5 commands</span>
+        <span class="ch-arrow">▼</span>
+      </div>
+      <div class="commands-body open">
+        <div class="cmd-row"><code class="cmd-name">cl add &lt;pokemon&gt;</code><div class="cmd-desc">Add one or more Pokémon to your collection. Use commas to add multiple at once.<div class="alias">aliases: collection add</div></div></div>
+        <div class="cmd-row"><code class="cmd-name">cl remove &lt;pokemon&gt;</code><div class="cmd-desc">Remove a Pokémon from your collection.<div class="alias">aliases: collection remove</div></div></div>
+        <div class="cmd-row"><code class="cmd-name">cl list</code><div class="cmd-desc">View your full collection in a paginated embed.<div class="alias">aliases: collection list</div></div></div>
+        <div class="cmd-row"><code class="cmd-name">cl raw</code><div class="cmd-desc">View your collection as plain text (or .txt file if large).<div class="alias">aliases: collection raw</div></div></div>
+        <div class="cmd-row"><code class="cmd-name">cl clear</code><div class="cmd-desc">⚠️ Clear your entire collection.<div class="alias">aliases: collection clear</div></div></div>
+      </div>
+    </div>
+
+    <!-- Shiny Hunt -->
+    <div class="commands-section">
+      <div class="commands-header" onclick="toggleSection(this)">
+        <span class="ch-icon">✨</span>
+        <h3>Shiny Hunt</h3>
+        <span class="ch-count">3 commands</span>
+        <span class="ch-arrow">▼</span>
+      </div>
+      <div class="commands-body open">
+        <div class="cmd-row"><code class="cmd-name">sh</code><div class="cmd-desc">Check your current shiny hunt target.<div class="alias">aliases: hunt, shinyhunt</div></div></div>
+        <div class="cmd-row"><code class="cmd-name">sh &lt;pokemon&gt;</code><div class="cmd-desc">Start hunting a specific Pokémon. Get pinged when it spawns.<div class="alias">aliases: hunt &lt;pokemon&gt;</div></div></div>
+        <div class="cmd-row"><code class="cmd-name">sh clear</code><div class="cmd-desc">Stop your current shiny hunt.<div class="alias">also: sh none, sh stop</div></div></div>
+      </div>
+    </div>
+
+    <!-- Type & Region Pings -->
+    <div class="commands-section">
+      <div class="commands-header" onclick="toggleSection(this)">
+        <span class="ch-icon">🔷</span>
+        <h3>Type & Region Pings</h3>
+        <span class="ch-count">4 commands</span>
+        <span class="ch-arrow">▼</span>
+      </div>
+      <div class="commands-body">
+        <div class="cmd-row"><code class="cmd-name">tp</code><div class="cmd-desc">Open the interactive type pings menu to toggle all 18 types.<div class="alias">aliases: typepings, typeping</div></div></div>
+        <div class="cmd-row"><code class="cmd-name">tp &lt;types&gt;</code><div class="cmd-desc">Directly toggle one or more types. Example: tp bug grass fire</div></div>
+        <div class="cmd-row"><code class="cmd-name">rp</code><div class="cmd-desc">Open the interactive region pings menu (Kanto → Paldea).<div class="alias">aliases: regionpings, regionping</div></div></div>
+        <div class="cmd-row"><code class="cmd-name">rp &lt;regions&gt;</code><div class="cmd-desc">Directly toggle one or more regions. Example: rp kanto johto</div></div>
+      </div>
+    </div>
+
+    <!-- Incense -->
+    <div class="commands-section">
+      <div class="commands-header" onclick="toggleSection(this)">
+        <span class="ch-icon">🔥</span>
+        <h3>Incense</h3>
+        <span class="ch-count">6 commands</span>
+        <span class="ch-arrow">▼</span>
+      </div>
+      <div class="commands-body">
+        <div class="cmd-row"><code class="cmd-name">inc toggle</code><div class="cmd-desc">Enable or disable the incense watcher for this server.</div></div>
+        <div class="cmd-row"><code class="cmd-name">inc cat add &lt;names&gt;</code><div class="cmd-desc">Add one or more channel categories to monitor for incense purchases.</div></div>
+        <div class="cmd-row"><code class="cmd-name">inc cat remove &lt;name&gt;</code><div class="cmd-desc">Stop monitoring a specific category.</div></div>
+        <div class="cmd-row"><code class="cmd-name">inc cat list</code><div class="cmd-desc">View all monitored categories and their channel counts.</div></div>
+        <div class="cmd-row"><code class="cmd-name">inc pause [all]</code><div class="cmd-desc">Pause incense for this channel, or all monitored categories at once.<div class="alias">aliases: inc p</div></div></div>
+        <div class="cmd-row"><code class="cmd-name">inc resume [all]</code><div class="cmd-desc">Resume incense for this channel, or all paused channels at once.<div class="alias">aliases: inc r</div></div></div>
+      </div>
+    </div>
+
+    <!-- Starboard -->
+    <div class="commands-section">
+      <div class="commands-header" onclick="toggleSection(this)">
+        <span class="ch-icon">⭐</span>
+        <h3>Starboard</h3>
+        <span class="ch-count">9 commands</span>
+        <span class="ch-arrow">▼</span>
+      </div>
+      <div class="commands-body">
+        <div class="cmd-row"><code class="cmd-name">starboard-settings</code><div class="cmd-desc">View current starboard channel configuration.</div></div>
+        <div class="cmd-row"><code class="cmd-name">starboard-all #ch</code><div class="cmd-desc">Log all catches, hatches, and unboxes to a channel.</div></div>
+        <div class="cmd-row"><code class="cmd-name">starboard-shiny #ch</code><div class="cmd-desc">Log shiny catches, hatches, and unboxes.</div></div>
+        <div class="cmd-row"><code class="cmd-name">starboard-gigantamax #ch</code><div class="cmd-desc">Log Gigantamax Pokémon.</div></div>
+        <div class="cmd-row"><code class="cmd-name">starboard-highiv #ch</code><div class="cmd-desc">Log high IV catches (≥90%).</div></div>
+        <div class="cmd-row"><code class="cmd-name">starboard-lowiv #ch</code><div class="cmd-desc">Log low IV catches (≤10%).</div></div>
+        <div class="cmd-row"><code class="cmd-name">starboard-missingno #ch</code><div class="cmd-desc">Log MissingNo catches.</div></div>
+        <div class="cmd-row"><code class="cmd-name">starboard-milestone #ch</code><div class="cmd-desc">Log milestone catches (e.g. 1000th catch).</div></div>
+        <div class="cmd-row"><code class="cmd-name">catchcheck / eggcheck</code><div class="cmd-desc">Manually trigger a starboard check by replying to a message.</div></div>
+      </div>
+    </div>
+
+    <!-- Settings -->
+    <div class="commands-section">
+      <div class="commands-header" onclick="toggleSection(this)">
+        <span class="ch-icon">⚙️</span>
+        <h3>Settings</h3>
+        <span class="ch-count">6 commands</span>
+        <span class="ch-arrow">▼</span>
+      </div>
+      <div class="commands-body">
+        <div class="cmd-row"><code class="cmd-name">afk</code><div class="cmd-desc">Toggle pings on/off with interactive buttons — ShinyHunt, Collection, TypePings, RegionPings.<div class="alias">aliases: away</div></div></div>
+        <div class="cmd-row"><code class="cmd-name">server-settings</code><div class="cmd-desc">View all current server settings.<div class="alias">aliases: ss, ssettings</div></div></div>
+        <div class="cmd-row"><code class="cmd-name">rare-role @role</code><div class="cmd-desc">Set a role to ping for Legendary/Mythical/Ultra Beast spawns.</div></div>
+        <div class="cmd-row"><code class="cmd-name">regional-role @role</code><div class="cmd-desc">Set a role to ping for regional Pokémon spawns.</div></div>
+        <div class="cmd-row"><code class="cmd-name">only-pings [true|false]</code><div class="cmd-desc">Only send prediction messages when there are pings to deliver.<div class="alias">aliases: op, onlypings</div></div></div>
+        <div class="cmd-row"><code class="cmd-name">clear-pings [@user]</code><div class="cmd-desc">Clear all ping data for a user or the entire server.<div class="alias">aliases: clearpings, resetpings</div></div></div>
+      </div>
+    </div>
+
+    <!-- Helpful -->
+    <div class="commands-section">
+      <div class="commands-header" onclick="toggleSection(this)">
+        <span class="ch-icon">🔍</span>
+        <h3>Helpful Tools</h3>
+        <span class="ch-count">3 commands</span>
+        <span class="ch-arrow">▼</span>
+      </div>
+      <div class="commands-body">
+        <div class="cmd-row"><code class="cmd-name">sr &lt;pokemon&gt;</code><div class="cmd-desc">Show the wild spawn rate for any Pokémon.<div class="alias">aliases: spawnrate</div></div></div>
+        <div class="cmd-row"><code class="cmd-name">shr [chain] [target%]</code><div class="cmd-desc">Calculate shiny rates at a given chain, or find the chain needed for a target %.<div class="alias">aliases: shinyrate</div></div></div>
+        <div class="cmd-row"><code class="cmd-name">Hint Solver</code><div class="cmd-desc">Automatic — no command needed. Replies to Pokétwo hints with matching Pokémon names in all languages.</div></div>
+      </div>
+    </div>
+
+  </div><!-- /tab-namer -->
+
+  <!-- MiniMeowth Commands -->
+  <div class="tab-panel" id="tab-mini">
+
+    <!-- Breeding -->
+    <div class="commands-section">
+      <div class="commands-header" onclick="toggleSection(this)">
+        <span class="ch-icon">🔄</span>
+        <h3>Breeding</h3>
+        <span class="ch-count">3 commands</span>
+        <span class="ch-arrow">▼</span>
+      </div>
+      <div class="commands-body open">
+        <div class="cmd-row"><code class="cmd-name">breed [count]</code><div class="cmd-desc">Generate optimal breeding pairs from your inventory (max 2 pairs).</div></div>
+        <div class="cmd-row"><code class="cmd-name">iwant "pokemon" move1, move2</code><div class="cmd-desc">Find the breeding chain to teach specific egg moves to a Pokémon.<div class="alias">aliases: chainbreed, cb</div></div></div>
+        <div class="cmd-row"><code class="cmd-name">canlearn move1, move2</code><div class="cmd-desc">Find all Pokémon that can naturally learn a set of moves.<div class="alias">aliases: wholearns, wl</div></div></div>
+      </div>
+    </div>
+
+    <!-- Inventory -->
+    <div class="commands-section">
+      <div class="commands-header" onclick="toggleSection(this)">
+        <span class="ch-icon">📦</span>
+        <h3>Inventory</h3>
+        <span class="ch-count">11 commands</span>
+        <span class="ch-arrow">▼</span>
+      </div>
+      <div class="commands-body">
+        <div class="cmd-row"><code class="cmd-name">add [message_ids]</code><div class="cmd-desc">Add Pokémon to your normal inventory.</div></div>
+        <div class="cmd-row"><code class="cmd-name">addtripmax [ids]</code><div class="cmd-desc">Add to TripMax inventory (high IV breeding).</div></div>
+        <div class="cmd-row"><code class="cmd-name">addtripzero [ids]</code><div class="cmd-desc">Add to TripZero inventory (low IV breeding).</div></div>
+        <div class="cmd-row"><code class="cmd-name">addduel [ids]</code><div class="cmd-desc">Add to Duel inventory for egg move breeding.<div class="alias">aliases: ad</div></div></div>
+        <div class="cmd-row"><code class="cmd-name">remove [ids] [--category]</code><div class="cmd-desc">Remove Pokémon from a specific inventory category.<div class="alias">aliases: rm | flags: --normal --tripmax --tripzero --duel</div></div></div>
+        <div class="cmd-row"><code class="cmd-name">releaseall --n &lt;name&gt;</code><div class="cmd-desc">Release all Pokémon matching name and category filters.<div class="alias">aliases: ra</div></div></div>
+        <div class="cmd-row"><code class="cmd-name">clear &lt;category&gt;</code><div class="cmd-desc">Clear an entire inventory category. Options: inv, tripmax, tripzero, duel, all.</div></div>
+        <div class="cmd-row"><code class="cmd-name">inventory [filters]</code><div class="cmd-desc">View normal inventory. Filter by gender, name, type, region, cooldown.<div class="alias">aliases: inv, invnormal</div></div></div>
+        <div class="cmd-row"><code class="cmd-name">invtripmax [filters]</code><div class="cmd-desc">View TripMax inventory with optional filters.<div class="alias">aliases: trip31, tripmax</div></div></div>
+        <div class="cmd-row"><code class="cmd-name">invtripzero [filters]</code><div class="cmd-desc">View TripZero inventory with optional filters.<div class="alias">aliases: tripzero, trip0</div></div></div>
+        <div class="cmd-row"><code class="cmd-name">stats</code><div class="cmd-desc">View inventory statistics across all categories.</div></div>
+      </div>
+    </div>
+
+    <!-- Shiny Dex -->
+    <div class="commands-section">
+      <div class="commands-header" onclick="toggleSection(this)">
+        <span class="ch-icon">✨</span>
+        <h3>Shiny Dex</h3>
+        <span class="ch-count">9 commands</span>
+        <span class="ch-arrow">▼</span>
+      </div>
+      <div class="commands-body">
+        <div class="cmd-row"><code class="cmd-name">trackshiny [ids]</code><div class="cmd-desc">Track shinies from Pokétwo messages.<div class="alias">aliases: addshiny</div></div></div>
+        <div class="cmd-row"><code class="cmd-name">removeshiny &lt;ids&gt;</code><div class="cmd-desc">Remove tracked shinies by Pokémon ID.<div class="alias">aliases: rmshiny</div></div></div>
+        <div class="cmd-row"><code class="cmd-name">shinydex [filters]</code><div class="cmd-desc">View basic shiny dex (one per Pokédex number). Supports --caught, --uncaught, --region, --type, --image and more.<div class="alias">aliases: sd, basicdex, bd</div></div></div>
+        <div class="cmd-row"><code class="cmd-name">shinydexfull [filters]</code><div class="cmd-desc">View full shiny dex including all forms and genders.<div class="alias">aliases: sdf, fulldex, fd</div></div></div>
+        <div class="cmd-row"><code class="cmd-name">filter &lt;filter_name&gt;</code><div class="cmd-desc">View filtered shiny dex — eevos, starters, legendaries, etc.<div class="alias">aliases: f</div></div></div>
+        <div class="cmd-row"><code class="cmd-name">pokemon [filters]</code><div class="cmd-desc">View your shiny Pokémon list with detailed IV and type info.<div class="alias">aliases: p</div></div></div>
+        <div class="cmd-row"><code class="cmd-name">order &lt;type&gt;</code><div class="cmd-desc">Set Pokémon display order. Options: iv, number, pokedex (with + or -).<div class="alias">aliases: or</div></div></div>
+        <div class="cmd-row"><code class="cmd-name">shinystats</code><div class="cmd-desc">View shiny collection statistics.</div></div>
+        <div class="cmd-row"><code class="cmd-name">typestats / regionstats</code><div class="cmd-desc">View shiny statistics broken down by type or region.<div class="alias">aliases: ts / rs</div></div></div>
+      </div>
+    </div>
+
+    <!-- Event Dex -->
+    <div class="commands-section">
+      <div class="commands-header" onclick="toggleSection(this)">
+        <span class="ch-icon">🎉</span>
+        <h3>Event Dex</h3>
+        <span class="ch-count">5 commands</span>
+        <span class="ch-arrow">▼</span>
+      </div>
+      <div class="commands-body">
+        <div class="cmd-row"><code class="cmd-name">trackevent [ids]</code><div class="cmd-desc">Track event shinies from Pokétwo messages.<div class="alias">aliases: addevent</div></div></div>
+        <div class="cmd-row"><code class="cmd-name">removeevent &lt;ids&gt;</code><div class="cmd-desc">Remove event shinies by Pokémon ID.<div class="alias">aliases: rmevent</div></div></div>
+        <div class="cmd-row"><code class="cmd-name">clearevent</code><div class="cmd-desc">Clear all tracked event shinies.</div></div>
+        <div class="cmd-row"><code class="cmd-name">eventdex [filters]</code><div class="cmd-desc">View event dex with optional region, type, and name filters.<div class="alias">aliases: ed</div></div></div>
+        <div class="cmd-row"><code class="cmd-name">eventstats</code><div class="cmd-desc">View event collection statistics.</div></div>
+      </div>
+    </div>
+
+    <!-- Customization -->
+    <div class="commands-section">
+      <div class="commands-header" onclick="toggleSection(this)">
+        <span class="ch-icon">🎨</span>
+        <h3>Customization</h3>
+        <span class="ch-count">8 commands</span>
+        <span class="ch-arrow">▼</span>
+      </div>
+      <div class="commands-body">
+        <div class="cmd-row"><code class="cmd-name">dexsettings</code><div class="cmd-desc">View current dex image customization settings.<div class="alias">aliases: dexset, ds</div></div></div>
+        <div class="cmd-row"><code class="cmd-name">dexcustomize &lt;setting&gt; &lt;value&gt;</code><div class="cmd-desc">Customize dex image appearance — grid, background, glass, border, badge colors, opacity, silhouette.<div class="alias">aliases: dc, dexcust</div></div></div>
+        <div class="cmd-row"><code class="cmd-name">dexsuggestions [theme]</code><div class="cmd-desc">Browse color scheme suggestions for your dex.<div class="alias">aliases: dexcolors, themes</div></div></div>
+        <div class="cmd-row"><code class="cmd-name">dexapplytheme &lt;theme&gt;</code><div class="cmd-desc">Apply a pre-made theme instantly. Example: dexapplytheme burgundy<div class="alias">aliases: dextheme, dat</div></div></div>
+        <div class="cmd-row"><code class="cmd-name">dexreset</code><div class="cmd-desc">Reset all dex customization to defaults.</div></div>
+        <div class="cmd-row"><code class="cmd-name">shinystatsimg</code><div class="cmd-desc">Generate a visual stats card of your collection.<div class="alias">aliases: ssimg, profile, pf</div></div></div>
+        <div class="cmd-row"><code class="cmd-name">settitle &lt;title&gt;</code><div class="cmd-desc">Set a custom title on your stats card.<div class="alias">aliases: title, ttl</div></div></div>
+        <div class="cmd-row"><code class="cmd-name">setfavorite &lt;id&gt;</code><div class="cmd-desc">Set a showcase Pokémon displayed on your stats card.<div class="alias">aliases: display, setshowcase</div></div></div>
+      </div>
+    </div>
+
+    <!-- Settings -->
+    <div class="commands-section">
+      <div class="commands-header" onclick="toggleSection(this)">
+        <span class="ch-icon">⚙️</span>
+        <h3>Settings</h3>
+        <span class="ch-count">6 commands</span>
+        <span class="ch-arrow">▼</span>
+      </div>
+      <div class="commands-body">
+        <div class="cmd-row"><code class="cmd-name">settings</code><div class="cmd-desc">Open the interactive settings menu with all breeding configurations.<div class="alias">aliases: gear, sg</div></div></div>
+        <div class="cmd-row"><code class="cmd-name">mode [selective|notselective]</code><div class="cmd-desc">Set breeding mode. Selective pairs old IDs (≤271800) with new IDs (≥271900).</div></div>
+        <div class="cmd-row"><code class="cmd-name">target [value]</code><div class="cmd-desc">Set breeding target. Options: all, mychoice, tripmax, tripzero, gigantamax, regionals, or Pokémon names.</div></div>
+        <div class="cmd-row"><code class="cmd-name">setmale / setfemale</code><div class="cmd-desc">Set specific males/females for MyChoice breeding target.</div></div>
+        <div class="cmd-row"><code class="cmd-name">cooldown add/remove/list/clear</code><div class="cmd-desc">Manage Pokémon cooldown list for breeding.<div class="alias">aliases: cd add / cd remove / cd list / cd clear</div></div></div>
+        <div class="cmd-row"><code class="cmd-name">setnickname &lt;id&gt; &lt;nick&gt;</code><div class="cmd-desc">Set a nickname for a specific Pokémon.<div class="alias">aliases: nick</div></div></div>
+      </div>
+    </div>
+
+  </div><!-- /tab-mini -->
+
+</section>
+
+<hr class="divider">
+
+<!-- LINKS -->
+<section id="links">
+  <p class="section-label">// Get Started</p>
+  <h2 class="section-title">Add the bots</h2>
+
+  <div class="bots-grid">
+    <div class="bot-card namer">
+      <div class="bot-icon">🔮</div>
+      <div class="bot-name">NamerMeowth</div>
+      <p class="bot-tagline">Spawn prediction, incense management, collection pings and more.</p>
+      <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:8px;">
+        <a href="#" class="btn btn-namer">Invite Bot</a>
+        <a href="#" class="btn btn-ghost">Support Server</a>
+      </div>
+    </div>
+    <div class="bot-card mini">
+      <div class="bot-icon">✨</div>
+      <div class="bot-name">MiniMeowth</div>
+      <p class="bot-tagline">Breeding chains, shiny dex tracking, custom dex images and more.</p>
+      <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:8px;">
+        <a href="#" class="btn btn-mini">Invite Bot</a>
+        <a href="#" class="btn btn-ghost">Support Server</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-left">© 2025 Meowth Bots · Built for the Pokétwo community</div>
+  <ul class="footer-links">
+    <li><a href="#">Terms of Service</a></li>
+    <li><a href="#">Privacy Policy</a></li>
+    <li><a href="#">Support Server</a></li>
+  </ul>
+</footer>
+
+<script>
+  function switchTab(tab, btn) {
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('tab-' + tab).classList.add('active');
+    btn.classList.add('active');
+  }
+
+  function toggleSection(header) {
+    const body = header.nextElementSibling;
+    const arrow = header.querySelector('.ch-arrow');
+    const isOpen = body.classList.contains('open');
+    body.classList.toggle('open', !isOpen);
+    arrow.style.transform = isOpen ? '' : 'rotate(180deg)';
+  }
+</script>
+
+</body>
+</html>
