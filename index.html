@@ -1116,12 +1116,12 @@
     const sprElectrode = makeSprite(cdn(101));
 
     // Boosts
-    // Slowpoke (#79) – slow-mo (slows obstacles, easier to dodge)
-    // Chansey (#113) – shield (absorb one hit)
-    // Gengar (#94)   – ghost mode (pass through obstacles)
-    const sprJolteon = makeSprite(cdn(79));
-    const sprChansey = makeSprite(cdn(113));
-    const sprGengar  = makeSprite(cdn(94));
+    // Magnemite (#81) – magnet (coins fly toward player, auto-collected)
+    // Chansey (#113)  – shield (absorb one hit)
+    // Gengar (#94)    – ghost mode (pass through obstacles)
+    const sprMagnemite = makeSprite(cdn(81));
+    const sprChansey   = makeSprite(cdn(113));
+    const sprGengar    = makeSprite(cdn(94));
 
     const meowth = {
       x: 80, y: GROUND,
@@ -1140,20 +1140,20 @@
     // sprW/sprH = draw size (larger so the sprite fills well despite PokeAPI transparent padding).
     // Sprite is drawn centered on the hitbox.
     const OB_TYPES = [
-      { id:'maractus',  w:32, h:58, sprW:80,  sprH:80,  spr:()=>sprMaractus,  fly:false },
-      { id:'golem',     w:38, h:42, sprW:72,  sprH:72,  spr:()=>sprGolem,     fly:false },
-      { id:'voltorb',   w:34, h:34, sprW:64,  sprH:64,  spr:()=>sprVoltorb,   fly:false },
-      { id:'electrode', w:34, h:34, sprW:64,  sprH:64,  spr:()=>sprElectrode, fly:false },
-      { id:'pidgey',    w:30, h:28, sprW:60,  sprH:60,  spr:()=>sprPidgey,    fly:true, flyH:()=>55+Math.random()*20 },
-      { id:'pidgeotto', w:36, h:32, sprW:68,  sprH:68,  spr:()=>sprPidgeotto, fly:true, flyH:()=>100+Math.random()*25 },
-      { id:'pidgeot',   w:40, h:36, sprW:76,  sprH:76,  spr:()=>sprPidgeot,   fly:true, flyH:()=>150+Math.random()*20 },
+      { id:'maractus',  w:20, h:44, sprW:80,  sprH:80,  spr:()=>sprMaractus,  fly:false },
+      { id:'golem',     w:24, h:30, sprW:72,  sprH:72,  spr:()=>sprGolem,     fly:false },
+      { id:'voltorb',   w:22, h:22, sprW:64,  sprH:64,  spr:()=>sprVoltorb,   fly:false },
+      { id:'electrode', w:22, h:22, sprW:64,  sprH:64,  spr:()=>sprElectrode, fly:false },
+      { id:'pidgey',    w:22, h:20, sprW:60,  sprH:60,  spr:()=>sprPidgey,    fly:true, flyH:()=>55+Math.random()*20 },
+      { id:'pidgeotto', w:26, h:22, sprW:68,  sprH:68,  spr:()=>sprPidgeotto, fly:true, flyH:()=>100+Math.random()*25 },
+      { id:'pidgeot',   w:28, h:24, sprW:76,  sprH:76,  spr:()=>sprPidgeot,   fly:true, flyH:()=>150+Math.random()*20 },
     ];
 
     // ── BOOST TYPES ──
     const BOOST_TYPES = [
-      { id:'jolteon',  spr:()=>sprJolteon,  color:'#ffb3de', label:'🌸 SLOWPOKE BOOST!', duration:300 },
-      { id:'chansey',  spr:()=>sprChansey,  color:'#ff80b0', label:'💗 CHANSEY SHIELD!',  duration:400 },
-      { id:'gengar',   spr:()=>sprGengar,   color:'#9060c0', label:'👻 GENGAR GHOST!',    duration:350 },
+      { id:'magnemite', spr:()=>sprMagnemite, color:'#60c0ff', label:'🧲 MAGNEMITE MAGNET!', duration:350 },
+      { id:'chansey',   spr:()=>sprChansey,   color:'#ff80b0', label:'💗 CHANSEY SHIELD!',   duration:400 },
+      { id:'gengar',    spr:()=>sprGengar,     color:'#9060c0', label:'👻 GENGAR GHOST!',     duration:350 },
     ];
 
     // ── DRAWING HELPERS ──
@@ -1259,8 +1259,8 @@
         ctx.shadowColor = '#ff80b0'; ctx.shadowBlur = 18;
       }
       // Slowpoke boost aura
-      if (boostType === 'jolteon' && boostActive) {
-        ctx.shadowColor = '#ffb3de'; ctx.shadowBlur = 20;
+      if (boostType === 'magnemite' && boostActive) {
+        ctx.shadowColor = '#60c0ff'; ctx.shadowBlur = 22;
       }
 
       // Pick sprite: boost pokemon while active, meowth/persian otherwise
@@ -1285,7 +1285,7 @@
       if (boostActive) {
         const bt = BOOST_TYPES.find(b=>b.id===boostType) || {duration:300};
         const prog = boostTimer / bt.duration;
-        const ringColor = boostType==='jolteon'?'#ffb3de':boostType==='chansey'?'#ff80b0':'#9060c0';
+        const ringColor = boostType==='magnemite'?'#60c0ff':boostType==='chansey'?'#ff80b0':'#9060c0';
         ctx.strokeStyle = ringColor;
         ctx.lineWidth = 2.5;
         ctx.beginPath();
@@ -1344,9 +1344,9 @@
       boostActive = true;
       boostType = id;
       boostTimer = duration;
-      if (id === 'chansey') { meowth.shielded = true; }
-      if (id === 'gengar')  { meowth.ghost    = true; }
-      // jolteon: slow-mo — obstacles move at half speed (handled in displaySpeed)
+      if (id === 'chansey')   { meowth.shielded = true; }
+      if (id === 'gengar')    { meowth.ghost    = true; }
+      // magnemite: coin magnet — coins fly toward player (handled in coin loop)
       boostLabelTimer = 120;
     }
 
@@ -1374,7 +1374,7 @@
     // ── COLLISION ──
     // a and b both use bottom-origin Y (y = bottom edge, y - h = top edge)
     function collides(a, b) {
-      const pad = 4;
+      const pad = 8;
       const aRight  = a.x + a.w - pad;
       const aLeft   = a.x + pad;
       const aBottom = a.y - pad;
@@ -1507,8 +1507,8 @@
         // Speed: starts at 3, cap at 9, gradual ramp
         speed = Math.min(9, 3 + score / 800);
 
-        // Slowpoke boost applies mild slow-mo (obstacles move at 70% speed)
-        const displaySpeed = (boostType==='jolteon') ? speed * 0.70 : speed;
+        // Magnemite boost has no speed effect — coins are pulled instead (handled in coin loop)
+        const displaySpeed = speed;
 
         // Physics
         meowth.vy += meowth.gravity;
@@ -1563,13 +1563,30 @@
         // Move & draw coins (above ground, never clipped inside obstacle)
         coinItems = coinItems.filter(c=>c.x>-20&&!c.collected);
         coinItems.forEach(c=>{
-          c.x -= displaySpeed;
+          // Magnemite magnet: pull coins toward player
+          if (boostType === 'magnemite' && boostActive) {
+            const targetX = meowth.x + meowth.w / 2 - c.w / 2;
+            const targetY = meowth.y - meowth.h / 2 - c.h / 2;
+            c.x += (targetX - c.x) * 0.12;
+            c.y += (targetY - c.y) * 0.12;
+          } else {
+            c.x -= displaySpeed;
+          }
           drawCoin(c);
           if (!c.collected &&
               meowth.x+meowth.w>c.x && meowth.x<c.x+c.w &&
               meowth.y>c.y && meowth.y-meowth.h<c.y+c.h) {
             c.collected=true; coins++; score+=50;
             spawnParticle(c.x+8, c.y+8, '#f5d020');
+          }
+          // Auto-collect when close enough during magnet
+          if (!c.collected && boostType === 'magnemite' && boostActive) {
+            const dx = (meowth.x + meowth.w/2) - (c.x + c.w/2);
+            const dy = (meowth.y - meowth.h/2) - (c.y + c.h/2);
+            if (Math.sqrt(dx*dx + dy*dy) < 20) {
+              c.collected=true; coins++; score+=50;
+              spawnParticle(c.x+8, c.y+8, '#60c0ff');
+            }
           }
         });
 
