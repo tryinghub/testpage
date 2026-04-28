@@ -1074,142 +1074,136 @@
 </footer>
 
 <script>
-  // ── MEOWTH RUNNER GAME ──
+  // ── MEOWTH RUNNER GAME (Enhanced) ──
   (function() {
     const canvas = document.getElementById('game-canvas');
     const ctx = canvas.getContext('2d');
     const W = canvas.width, H = canvas.height;
     const GROUND = H - 40;
 
+    // CDN helper
+    const cdn = n => `https://cdn.poketwo.net/images/${n}.png`;
+
     let score = 0, hiScore = 0, coins = 0;
-    let gameState = 'idle'; // idle | running | dead
-    let frame = 0, speed = 5, spawnTimer = 0, spawnInterval = 90;
+    let gameState = 'idle';
+    let frame = 0, speed = 5, spawnTimer = 0, spawnInterval = 100;
+    let boostTimer = 0, boostActive = false, boostType = null;
+    let boostItems = [];
+    let boostLabel = '', boostLabelTimer = 0;
 
-    // ── MEOWTH SPRITE ──
-    const meowthSprite = new Image();
-    const meowthDuckSprite = new Image();
-    let spriteLoaded = false;
-    let duckLoaded = false;
+    // ── SPRITES ──
+    function makeSprite(src) {
+      const img = new Image(); img.crossOrigin='anonymous'; img.src=src;
+      let loaded=false; img.onload=()=>{loaded=true;}; img._loaded=()=>loaded;
+      return img;
+    }
 
-    // Official Meowth sprite from PokeAPI (Pokémon #52)
-    meowthSprite.crossOrigin = 'anonymous';
-    meowthSprite.src = 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/52.png';
-    meowthSprite.onload = () => { spriteLoaded = true; };
+    // Player: Meowth (#52), ducking Persian (#53)
+    const sprMeowth  = makeSprite(cdn(52));
+    const sprPersian = makeSprite(cdn(53));
 
-    // Persian sprite for ducking (low, sleek form - Meowth's evolution, stays low)
-    meowthDuckSprite.crossOrigin = 'anonymous';
-    meowthDuckSprite.src = 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/53.png';
-    meowthDuckSprite.onload = () => { duckLoaded = true; };
+    // Obstacles
+    // Maractus (#556) – ground cactus replacement
+    // Golem (#76) – rock replacement
+    // Pidgey (#16), Pidgeotto (#17), Pidgeot (#18) – flying obstacles
+    // Voltorb (#100), Electrode (#101) – rolling obstacles
+    const sprMaractus  = makeSprite(cdn(556));
+    const sprGolem     = makeSprite(cdn(76));
+    const sprPidgey    = makeSprite(cdn(16));
+    const sprPidgeotto = makeSprite(cdn(17));
+    const sprPidgeot   = makeSprite(cdn(18));
+    const sprVoltorb   = makeSprite(cdn(100));
+    const sprElectrode = makeSprite(cdn(101));
+
+    // Boosts
+    // Rapidash (#78) – speed boost (temporary, controlled)
+    // Chansey (#113) – shield
+    // Gengar (#94) – ghost mode (pass through 1 obstacle)
+    const sprRapidash = makeSprite(cdn(78));
+    const sprChansey  = makeSprite(cdn(113));
+    const sprGengar   = makeSprite(cdn(94));
+
     const meowth = {
       x: 80, y: GROUND,
       w: 44, h: 48,
       vy: 0, gravity: 0.7,
       jumping: false, ducking: false,
-      animFrame: 0, animTimer: 0,
-      get top() { return this.y - this.h; },
-      get bottom() { return this.y; },
-      get right() { return this.x + this.w; },
-      get left() { return this.x; }
+      shielded: false, ghost: false
     };
 
-    let obstacles = [];
-    let coinItems = [];
-    let particles = [];
+    let obstacles = [], coinItems = [], particles = [];
     let clouds = [{x:200,y:40,s:1},{x:500,y:25,s:0.8},{x:750,y:55,s:1.2}];
-    let stars = Array.from({length:30}, () => ({x:Math.random()*W, y:Math.random()*(GROUND-60), a:Math.random()}));
+    let stars = Array.from({length:30}, ()=>({x:Math.random()*W, y:Math.random()*(GROUND-60), a:Math.random()}));
 
-    // Obstacle types
-    const OBSTACLES = [
-      { type:'cactus',   w:22, h:50, color:'#3d8b37', draw: drawCactus },
-      { type:'rock',     w:34, h:26, color:'#7a6a5a', draw: drawRock },
-      { type:'pidgey',   w:36, h:28, color:'#c8a87a', draw: drawPidgey, fly: true },
-      { type:'mewtwo',   w:32, h:44, color:'#b07ab8', draw: drawMewtwo },
-      { type:'pokeball', w:26, h:26, color:'#e05050', draw: drawPokeball },
+    // ── OBSTACLE TYPES ──
+    // Each obstacle y is GROUND (ground) or GROUND - flyHeight (flying)
+    // We'll pick from a weighted pool
+    const OB_TYPES = [
+      { id:'maractus',  w:38, h:52, spr:()=>sprMaractus,  fly:false },
+      { id:'golem',     w:44, h:38, spr:()=>sprGolem,     fly:false },
+      { id:'voltorb',   w:32, h:32, spr:()=>sprVoltorb,   fly:false },
+      { id:'electrode', w:36, h:36, spr:()=>sprElectrode, fly:false },
+      { id:'pidgey',    w:36, h:32, spr:()=>sprPidgey,    fly:true, flyH:()=>55+Math.random()*20 },
+      { id:'pidgeotto', w:40, h:36, spr:()=>sprPidgeotto, fly:true, flyH:()=>60+Math.random()*25 },
+      { id:'pidgeot',   w:46, h:42, spr:()=>sprPidgeot,   fly:true, flyH:()=>50+Math.random()*30 },
     ];
 
-    function drawCactus(ob) {
-      ctx.fillStyle = '#3d8b37';
-      ctx.fillRect(ob.x+8, ob.y-ob.h, 6, ob.h);
-      ctx.fillRect(ob.x+2, ob.y-ob.h+14, 8, 5);
-      ctx.fillRect(ob.x+14, ob.y-ob.h+20, 8, 5);
-      ctx.fillRect(ob.x, ob.y-ob.h+14, 4, 16);
-      ctx.fillRect(ob.x+18, ob.y-ob.h+20, 4, 12);
-      ctx.fillStyle = '#2e6b2a';
-      ctx.fillRect(ob.x+9, ob.y-ob.h, 2, ob.h);
+    // ── BOOST TYPES ──
+    const BOOST_TYPES = [
+      { id:'rapidash', spr:()=>sprRapidash, color:'#ff8c00', label:'⚡ RAPIDASH BOOST!',  duration:300 },
+      { id:'chansey',  spr:()=>sprChansey,  color:'#ff80b0', label:'💗 CHANSEY SHIELD!',  duration:400 },
+      { id:'gengar',   spr:()=>sprGengar,   color:'#9060c0', label:'👻 GENGAR GHOST!',    duration:350 },
+    ];
+
+    // ── DRAWING HELPERS ──
+    function drawSprite(img, x, y, w, h, alpha=1, tint=null) {
+      ctx.save();
+      if (alpha !== 1) ctx.globalAlpha = alpha;
+      if (img._loaded()) {
+        ctx.drawImage(img, x, y, w, h);
+      } else {
+        ctx.fillStyle = '#555';
+        ctx.fillRect(x, y, w, h);
+      }
+      ctx.restore();
     }
 
-    function drawRock(ob) {
-      ctx.fillStyle = '#7a6a5a';
-      ctx.beginPath();
-      ctx.ellipse(ob.x+ob.w/2, ob.y-ob.h/2, ob.w/2, ob.h/2, 0, 0, Math.PI*2);
-      ctx.fill();
-      ctx.fillStyle = '#9a8a7a';
-      ctx.beginPath();
-      ctx.ellipse(ob.x+ob.w/2-4, ob.y-ob.h/2-4, ob.w/3, ob.h/3, -0.3, 0, Math.PI*2);
-      ctx.fill();
+    function drawObstacle(ob) {
+      const img = ob.spr();
+      const drawX = ob.x;
+      const drawY = ob.y - ob.h;
+      // Voltorb/Electrode spin
+      if (ob.id === 'voltorb' || ob.id === 'electrode') {
+        ctx.save();
+        ctx.translate(drawX + ob.w/2, drawY + ob.h/2);
+        ctx.rotate(frame * 0.08);
+        if (img._loaded()) ctx.drawImage(img, -ob.w/2, -ob.h/2, ob.w, ob.h);
+        else { ctx.fillStyle='#e05050'; ctx.beginPath(); ctx.arc(0,0,ob.w/2,0,Math.PI*2); ctx.fill(); }
+        ctx.restore();
+        return;
+      }
+      // Flying birds: flap animation offset
+      if (ob.fly) {
+        const flapY = Math.sin(frame*0.3 + ob.flapOff) * 3;
+        drawSprite(img, drawX, drawY + flapY, ob.w, ob.h);
+        return;
+      }
+      drawSprite(img, drawX, drawY, ob.w, ob.h);
     }
 
-    function drawPidgey(ob) {
-      const bx = ob.x, by = ob.y - ob.h;
-      const flap = Math.sin(frame * 0.25) * 5;
-      // body
-      ctx.fillStyle = '#c8a87a';
-      ctx.beginPath(); ctx.ellipse(bx+18, by+18, 14, 10, 0, 0, Math.PI*2); ctx.fill();
-      // head
-      ctx.fillStyle = '#d4b88a';
-      ctx.beginPath(); ctx.arc(bx+28, by+10, 8, 0, Math.PI*2); ctx.fill();
-      // wing
-      ctx.fillStyle = '#b09060';
-      ctx.beginPath();
-      ctx.moveTo(bx+14, by+14);
-      ctx.lineTo(bx+4, by+8+flap);
-      ctx.lineTo(bx+18, by+22);
-      ctx.fill();
-      // beak
-      ctx.fillStyle = '#e8a040';
-      ctx.fillRect(bx+34, by+9, 6, 3);
-      // eye
-      ctx.fillStyle = '#1a1a1a';
-      ctx.beginPath(); ctx.arc(bx+30, by+9, 2, 0, Math.PI*2); ctx.fill();
-    }
-
-    function drawMewtwo(ob) {
-      const bx = ob.x, by = ob.y - ob.h;
-      // body
-      ctx.fillStyle = '#b07ab8';
-      ctx.beginPath(); ctx.ellipse(bx+16, by+28, 10, 14, 0, 0, Math.PI*2); ctx.fill();
-      // head
-      ctx.fillStyle = '#c890d0';
-      ctx.beginPath(); ctx.arc(bx+16, by+12, 11, 0, Math.PI*2); ctx.fill();
-      // ears
-      ctx.fillStyle = '#9060a0';
-      ctx.beginPath(); ctx.moveTo(bx+8,by+4); ctx.lineTo(bx+4,by-4); ctx.lineTo(bx+13,by+6); ctx.fill();
-      ctx.beginPath(); ctx.moveTo(bx+24,by+4); ctx.lineTo(bx+28,by-4); ctx.lineTo(bx+19,by+6); ctx.fill();
-      // eyes
-      ctx.fillStyle = '#60a0e0';
-      ctx.beginPath(); ctx.arc(bx+11, by+12, 3, 0, Math.PI*2); ctx.fill();
-      ctx.beginPath(); ctx.arc(bx+21, by+12, 3, 0, Math.PI*2); ctx.fill();
-      // tail
-      ctx.strokeStyle = '#9060a0'; ctx.lineWidth=3;
-      ctx.beginPath(); ctx.moveTo(bx+16, by+40); ctx.quadraticCurveTo(bx+30, by+50, bx+28, by+38); ctx.stroke();
-      // glow aura
-      ctx.strokeStyle = 'rgba(176,122,184,0.3)'; ctx.lineWidth=6;
-      ctx.beginPath(); ctx.arc(bx+16, by+20, 18, 0, Math.PI*2); ctx.stroke();
-    }
-
-    function drawPokeball(ob) {
-      const cx = ob.x+ob.w/2, cy = ob.y-ob.h/2, r = ob.w/2;
-      ctx.fillStyle = '#e05050';
-      ctx.beginPath(); ctx.arc(cx, cy, r, Math.PI, 0); ctx.fill();
-      ctx.fillStyle = '#f0f0f0';
-      ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI); ctx.fill();
-      ctx.strokeStyle = '#222'; ctx.lineWidth=2;
-      ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI*2); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(cx-r, cy); ctx.lineTo(cx+r, cy); ctx.stroke();
-      ctx.fillStyle = '#fff';
-      ctx.beginPath(); ctx.arc(cx, cy, r*0.3, 0, Math.PI*2); ctx.fill();
-      ctx.strokeStyle = '#222'; ctx.lineWidth=1.5;
-      ctx.beginPath(); ctx.arc(cx, cy, r*0.3, 0, Math.PI*2); ctx.stroke();
+    function drawBoostItem(b) {
+      const img = b.spr();
+      const pulse = 0.88 + Math.sin(frame * 0.18 + b.off) * 0.12;
+      ctx.save();
+      ctx.translate(b.x + b.w/2, b.y + b.h/2);
+      ctx.scale(pulse, pulse);
+      // glow ring
+      ctx.shadowColor = b.color;
+      ctx.shadowBlur = 12;
+      if (img._loaded()) ctx.drawImage(img, -b.w/2, -b.h/2, b.w, b.h);
+      else { ctx.fillStyle=b.color; ctx.beginPath(); ctx.arc(0,0,b.w/2,0,Math.PI*2); ctx.fill(); }
+      ctx.shadowBlur = 0;
+      ctx.restore();
     }
 
     function drawCoin(c) {
@@ -1217,12 +1211,10 @@
       ctx.save();
       ctx.translate(c.x+8, c.y+8);
       ctx.scale(pulse, pulse);
-      // coin body
       ctx.fillStyle = '#f5d020';
       ctx.beginPath(); ctx.arc(0,0,8,0,Math.PI*2); ctx.fill();
       ctx.fillStyle = '#f7a32b';
       ctx.beginPath(); ctx.arc(0,0,5,0,Math.PI*2); ctx.fill();
-      // ¥ symbol (pay day!)
       ctx.fillStyle = '#c8860a';
       ctx.font = 'bold 8px sans-serif';
       ctx.textAlign='center'; ctx.textBaseline='middle';
@@ -1237,89 +1229,127 @@
       const spriteH = isDucking ? 40 : 64;
       const drawX = m.x - 10;
       const drawY = m.y - spriteH;
-
-      // Bob animation when running on ground
       const bob = (!m.jumping && !isDucking) ? Math.sin(frame * 0.28) * 2 : 0;
 
       ctx.save();
-
-      // Squash/stretch on jump peak and landing
       let scaleX = 1, scaleY = 1;
-      if (m.jumping && m.vy < 0) { scaleX = 0.88; scaleY = 1.12; } // stretch going up
-      if (m.jumping && m.vy > 4)  { scaleX = 1.12; scaleY = 0.88; } // squash falling
-
+      if (m.jumping && m.vy < 0) { scaleX = 0.88; scaleY = 1.12; }
+      if (m.jumping && m.vy > 4)  { scaleX = 1.12; scaleY = 0.88; }
       ctx.translate(drawX + spriteW/2, drawY + spriteH/2 + bob);
       ctx.scale(scaleX, scaleY);
 
-      // Shadow under Meowth
+      // Shadow
       ctx.fillStyle = 'rgba(0,0,0,0.25)';
       ctx.beginPath();
-      ctx.ellipse(0, spriteH/2 + (m.y - (drawY + spriteH/2 + bob)), spriteW*0.4*scaleX, 5, 0, 0, Math.PI*2);
+      ctx.ellipse(0, spriteH/2 + (m.y-(drawY+spriteH/2+bob)), spriteW*0.4, 5, 0, 0, Math.PI*2);
       ctx.fill();
 
-      if (isDucking && duckLoaded) {
-        ctx.drawImage(meowthDuckSprite, -spriteW/2, -spriteH/2, spriteW, spriteH);
-      } else if (spriteLoaded) {
-        ctx.drawImage(meowthSprite, -spriteW/2, -spriteH/2, spriteW, spriteH);
-      } else {
-        // Fallback circle if sprite not loaded yet
-        ctx.fillStyle = '#f5c842';
-        ctx.beginPath(); ctx.arc(0, 0, 20, 0, Math.PI*2); ctx.fill();
-        ctx.fillStyle = '#222';
-        ctx.font = '20px sans-serif';
-        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-        ctx.fillText('🐱', 0, 0);
+      // Ghost aura
+      if (m.ghost) {
+        ctx.globalAlpha = 0.5;
+        ctx.shadowColor = '#9060c0'; ctx.shadowBlur = 16;
+      }
+      // Shield aura
+      if (m.shielded) {
+        ctx.shadowColor = '#ff80b0'; ctx.shadowBlur = 18;
       }
 
-      // Coin flash effect when collecting
-      if (particles.some(p => p.color === '#f5d020' && p.life > 0.7)) {
-        ctx.globalAlpha = 0.3;
-        ctx.fillStyle = '#f5d020';
-        ctx.beginPath(); ctx.arc(0, 0, 28, 0, Math.PI*2); ctx.fill();
-        ctx.globalAlpha = 1;
+      const spr = isDucking ? sprPersian : sprMeowth;
+      if (spr._loaded()) {
+        ctx.drawImage(spr, -spriteW/2, -spriteH/2, spriteW, spriteH);
+      } else {
+        ctx.fillStyle = '#f5c842';
+        ctx.beginPath(); ctx.arc(0,0,20,0,Math.PI*2); ctx.fill();
+      }
+
+      ctx.globalAlpha = 1; ctx.shadowBlur = 0;
+
+      // Boost status ring
+      if (boostActive) {
+        const prog = boostTimer / (BOOST_TYPES.find(b=>b.id===boostType)||{duration:300}).duration;
+        ctx.strokeStyle = boostType==='rapidash'?'#ff8c00':boostType==='chansey'?'#ff80b0':'#9060c0';
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.arc(0, 0, spriteW*0.55, -Math.PI/2, -Math.PI/2 + prog*Math.PI*2);
+        ctx.stroke();
       }
 
       ctx.restore();
     }
 
+    // ── SPAWNING ──
     function spawnObstacle() {
-      const type = OBSTACLES[Math.floor(Math.random() * OBSTACLES.length)];
-      const isFly = type.fly;
-      const flyHeight = isFly ? 55 + Math.floor(Math.random() * 30) : 0;
+      const type = OB_TYPES[Math.floor(Math.random() * OB_TYPES.length)];
+      const flyH = type.fly ? type.flyH() : 0;
       obstacles.push({
         x: W + 10,
-        y: GROUND - flyHeight,
+        y: GROUND - flyH,
         w: type.w, h: type.h,
-        type: type.type,
-        draw: type.draw,
-        fly: isFly
+        id: type.id,
+        spr: type.spr,
+        fly: type.fly,
+        flapOff: Math.random() * Math.PI * 2
       });
     }
 
-    function spawnCoin() {
-      coinItems.push({
-        x: W + 10,
-        y: GROUND - 30 - Math.random() * 60,
-        w: 16, h: 16,
-        offset: Math.random() * Math.PI * 2,
+    function spawnCoin(avoidObstacleX) {
+      // Keep coins clear of obstacles: spawn far right of any recently spawned obstacle
+      const safeX = W + 80 + Math.random() * 40;
+      // Height: either ground level or mid-air (jumping collectibles)
+      const h = Math.random() < 0.5
+        ? GROUND - 18               // near ground, clearly above it
+        : GROUND - 60 - Math.random() * 30; // jump-height coins
+      coinItems.push({ x: safeX, y: h, w: 16, h: 16, offset: Math.random()*Math.PI*2, collected: false });
+    }
+
+    function spawnBoostItem() {
+      const type = BOOST_TYPES[Math.floor(Math.random()*BOOST_TYPES.length)];
+      // Spawn boost clearly in the air at jump-reachable height
+      boostItems.push({
+        x: W + 60 + Math.random()*60,
+        y: GROUND - 65,
+        w: 40, h: 40,
+        id: type.id,
+        spr: type.spr,
+        color: type.color,
+        label: type.label,
+        duration: type.duration,
+        off: Math.random()*Math.PI*2,
         collected: false
       });
     }
 
-    function spawnParticle(x, y, color) {
-      for(let i=0;i<8;i++) {
-        particles.push({
-          x, y,
-          vx: (Math.random()-0.5)*6,
-          vy: -Math.random()*5-1,
-          life: 1, color,
-          r: 3+Math.random()*4
-        });
+    // ── BOOST ACTIVATION ──
+    function activateBoost(id, duration) {
+      boostActive = true;
+      boostType = id;
+      boostTimer = duration;
+      if (id === 'chansey')  { meowth.shielded = true; }
+      if (id === 'gengar')   { meowth.ghost    = true; }
+      boostLabelTimer = 120;
+    }
+
+    function tickBoost() {
+      if (!boostActive) return;
+      boostTimer--;
+      if (boostTimer <= 0) {
+        boostActive = false;
+        if (boostType === 'chansey') meowth.shielded = false;
+        if (boostType === 'gengar')  meowth.ghost    = false;
+        boostType = null;
       }
     }
 
+    // ── PARTICLES ──
+    function spawnParticle(x, y, color, count=8) {
+      for(let i=0;i<count;i++) {
+        particles.push({ x, y, vx:(Math.random()-0.5)*7, vy:-Math.random()*6-1, life:1, color, r:3+Math.random()*4 });
+      }
+    }
+
+    // ── COLLISION ──
     function collides(a, b) {
-      const pad = 8;
+      const pad = 9;
       return (
         a.x + pad < b.x + b.w - pad &&
         a.x + a.w - pad > b.x + pad &&
@@ -1328,85 +1358,72 @@
       );
     }
 
+    // ── BACKGROUND ──
     function drawGround() {
-      // gradient ground
-      const grd = ctx.createLinearGradient(0, GROUND, 0, H);
-      grd.addColorStop(0, '#1e1e28');
-      grd.addColorStop(1, '#0a0a0e');
-      ctx.fillStyle = grd;
-      ctx.fillRect(0, GROUND, W, H-GROUND);
-      // ground line
-      ctx.strokeStyle = '#3a3a50';
-      ctx.lineWidth = 1;
-      ctx.beginPath(); ctx.moveTo(0, GROUND); ctx.lineTo(W, GROUND); ctx.stroke();
-      // dashes
-      ctx.strokeStyle = '#2a2a38';
-      ctx.lineWidth = 1;
-      for(let i=0;i<W;i+=40) {
-        ctx.beginPath(); ctx.moveTo(i,GROUND+6); ctx.lineTo(i+20,GROUND+6); ctx.stroke();
-      }
+      const grd = ctx.createLinearGradient(0,GROUND,0,H);
+      grd.addColorStop(0,'#1e1e28'); grd.addColorStop(1,'#0a0a0e');
+      ctx.fillStyle=grd; ctx.fillRect(0,GROUND,W,H-GROUND);
+      ctx.strokeStyle='#3a3a50'; ctx.lineWidth=1;
+      ctx.beginPath(); ctx.moveTo(0,GROUND); ctx.lineTo(W,GROUND); ctx.stroke();
+      ctx.strokeStyle='#2a2a38'; ctx.lineWidth=1;
+      for(let i=0;i<W;i+=40){ ctx.beginPath(); ctx.moveTo(i,GROUND+6); ctx.lineTo(i+20,GROUND+6); ctx.stroke(); }
     }
 
     function drawBackground() {
-      // sky gradient
-      const sky = ctx.createLinearGradient(0, 0, 0, GROUND);
-      sky.addColorStop(0, '#07070d');
-      sky.addColorStop(1, '#0f0f1a');
-      ctx.fillStyle = sky;
-      ctx.fillRect(0, 0, W, GROUND);
-
-      // stars twinkle
+      const sky=ctx.createLinearGradient(0,0,0,GROUND);
+      sky.addColorStop(0,'#07070d'); sky.addColorStop(1,'#0f0f1a');
+      ctx.fillStyle=sky; ctx.fillRect(0,0,W,GROUND);
       stars.forEach(s => {
-        s.a += 0.02;
-        const alpha = 0.3 + Math.abs(Math.sin(s.a)) * 0.7;
-        ctx.fillStyle = `rgba(200,200,255,${alpha})`;
-        ctx.fillRect(s.x, s.y, 1.5, 1.5);
+        s.a+=0.02;
+        const alpha=0.3+Math.abs(Math.sin(s.a))*0.7;
+        ctx.fillStyle=`rgba(200,200,255,${alpha})`; ctx.fillRect(s.x,s.y,1.5,1.5);
       });
-
-      // clouds (slow drift)
       clouds.forEach(c => {
-        c.x -= 0.3;
-        if(c.x < -120) c.x = W + 60;
-        drawCloud(c.x, c.y, c.s);
+        c.x-=0.3; if(c.x<-120) c.x=W+60;
+        ctx.fillStyle='rgba(80,80,120,0.3)';
+        ctx.beginPath(); ctx.arc(c.x+40*c.s,c.y+15*c.s,20*c.s,0,Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(c.x+60*c.s,c.y+10*c.s,25*c.s,0,Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(c.x+80*c.s,c.y+15*c.s,18*c.s,0,Math.PI*2); ctx.fill();
       });
     }
 
-    function drawCloud(x, y, s) {
-      ctx.fillStyle = 'rgba(80,80,120,0.3)';
-      ctx.beginPath(); ctx.arc(x+40*s, y+15*s, 20*s, 0, Math.PI*2); ctx.fill();
-      ctx.beginPath(); ctx.arc(x+60*s, y+10*s, 25*s, 0, Math.PI*2); ctx.fill();
-      ctx.beginPath(); ctx.arc(x+80*s, y+15*s, 18*s, 0, Math.PI*2); ctx.fill();
-    }
-
+    // ── UI ──
     function drawUI() {
-      if (gameState === 'idle') {
-        ctx.fillStyle = 'rgba(0,0,0,0.5)';
-        ctx.fillRect(0,0,W,H);
-        ctx.fillStyle = '#f5c842';
-        ctx.font = 'bold 28px Syne, sans-serif';
+      // Boost label flash
+      if (boostLabelTimer > 0) {
+        boostLabelTimer--;
+        const alpha = Math.min(1, boostLabelTimer / 30);
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        const bt = BOOST_TYPES.find(b=>b.id===boostType) || BOOST_TYPES.find(b=>b.label===boostLabel);
+        const col = bt ? bt.color : '#fff';
+        ctx.fillStyle = col;
+        ctx.font = 'bold 15px Syne, sans-serif';
         ctx.textAlign = 'center';
-        ctx.fillText('🐱 MEOWTH RUNNER', W/2, H/2 - 28);
-        ctx.fillStyle = '#e8e8f0';
-        ctx.font = '16px Syne, sans-serif';
-        ctx.fillText('Press Space, ↑, or Tap to start!', W/2, H/2+10);
-        ctx.fillStyle = '#6b6b80';
-        ctx.font = '13px DM Mono, monospace';
-        ctx.fillText('Avoid obstacles · Collect ¥ coins · Duck with ↓', W/2, H/2+40);
+        ctx.shadowColor = col; ctx.shadowBlur = 10;
+        ctx.fillText(boostLabel, W/2, 28);
+        ctx.shadowBlur = 0;
+        ctx.restore();
+      }
+
+      if (gameState === 'idle') {
+        ctx.fillStyle='rgba(0,0,0,0.5)'; ctx.fillRect(0,0,W,H);
+        ctx.fillStyle='#f5c842'; ctx.font='bold 26px Syne, sans-serif'; ctx.textAlign='center';
+        ctx.fillText('🐱 MEOWTH RUNNER', W/2, H/2-30);
+        ctx.fillStyle='#e8e8f0'; ctx.font='15px Syne, sans-serif';
+        ctx.fillText('Press Space, ↑, or Tap to start!', W/2, H/2+8);
+        ctx.fillStyle='#6b6b80'; ctx.font='12px DM Mono, monospace';
+        ctx.fillText('Avoid obstacles · Collect ¥ coins · Grab glowing boosts · Duck with ↓', W/2, H/2+34);
       }
 
       if (gameState === 'dead') {
-        ctx.fillStyle = 'rgba(0,0,0,0.55)';
-        ctx.fillRect(0,0,W,H);
-        ctx.fillStyle = '#e05050';
-        ctx.font = 'bold 26px Syne, sans-serif';
-        ctx.textAlign = 'center';
+        ctx.fillStyle='rgba(0,0,0,0.55)'; ctx.fillRect(0,0,W,H);
+        ctx.fillStyle='#e05050'; ctx.font='bold 24px Syne, sans-serif'; ctx.textAlign='center';
         ctx.fillText('💥 GAME OVER', W/2, H/2-24);
-        ctx.fillStyle = '#e8e8f0';
-        ctx.font = '15px Syne, sans-serif';
-        ctx.fillText(`Score: ${score}  |  Best: ${hiScore}`, W/2, H/2+8);
-        ctx.fillStyle = '#f5a623';
-        ctx.font = '13px DM Mono, monospace';
-        ctx.fillText('Press Space or Tap to try again!', W/2, H/2+34);
+        ctx.fillStyle='#e8e8f0'; ctx.font='15px Syne, sans-serif';
+        ctx.fillText(`Score: ${score}  |  Best: ${hiScore}  |  Coins: ${coins}`, W/2, H/2+8);
+        ctx.fillStyle='#f5a623'; ctx.font='13px DM Mono, monospace';
+        ctx.fillText('Press Space or Tap to try again!', W/2, H/2+32);
       }
     }
 
@@ -1416,123 +1433,139 @@
       document.getElementById('coin-count').textContent = coins;
     }
 
+    // ── CONTROLS ──
     function jump() {
-      if (!meowth.jumping) {
-        meowth.vy = -14;
-        meowth.jumping = true;
-      }
+      if (!meowth.jumping) { meowth.vy=-14; meowth.jumping=true; }
     }
 
     function startGame() {
-      score = 0; coins = 0;
-      speed = 5; frame = 0;
-      spawnTimer = 0; spawnInterval = 90;
-      obstacles = [];
-      coinItems = [];
-      particles = [];
-      meowth.y = GROUND;
-      meowth.vy = 0;
-      meowth.jumping = false;
-      meowth.ducking = false;
-      gameState = 'running';
+      score=0; coins=0; speed=5; frame=0;
+      spawnTimer=0; spawnInterval=100;
+      obstacles=[]; coinItems=[]; particles=[]; boostItems=[];
+      boostActive=false; boostType=null; boostTimer=0;
+      meowth.y=GROUND; meowth.vy=0; meowth.jumping=false;
+      meowth.ducking=false; meowth.shielded=false; meowth.ghost=false;
+      gameState='running';
     }
 
     function handleInput(duck) {
-      if (gameState === 'idle' || gameState === 'dead') {
-        startGame();
-        return;
-      }
-      if (duck) {
-        meowth.ducking = true;
-      } else {
-        meowth.ducking = false;
-        jump();
-      }
+      if (gameState==='idle'||gameState==='dead') { startGame(); return; }
+      if (duck) meowth.ducking=true;
+      else { meowth.ducking=false; jump(); }
     }
 
-    // keyboard
-    document.addEventListener('keydown', e => {
-      if (e.code === 'Space' || e.key === 'ArrowUp') { e.preventDefault(); handleInput(false); }
-      if (e.key === 'ArrowDown') { e.preventDefault(); handleInput(true); }
+    document.addEventListener('keydown', e=>{
+      if (e.code==='Space'||e.key==='ArrowUp'){e.preventDefault();handleInput(false);}
+      if (e.key==='ArrowDown'){e.preventDefault();handleInput(true);}
     });
-    document.addEventListener('keyup', e => {
-      if (e.key === 'ArrowDown') meowth.ducking = false;
-    });
+    document.addEventListener('keyup', e=>{ if(e.key==='ArrowDown') meowth.ducking=false; });
+    canvas.addEventListener('click',()=>handleInput(false));
+    canvas.addEventListener('touchstart',e=>{e.preventDefault();handleInput(false);},{passive:false});
 
-    // touch / click
-    canvas.addEventListener('click', () => handleInput(false));
-    canvas.addEventListener('touchstart', e => { e.preventDefault(); handleInput(false); }, {passive:false});
+    // ── MAIN LOOP ──
+    let boostSpawnTimer = 0;
 
     function loop() {
-      ctx.clearRect(0, 0, W, H);
+      ctx.clearRect(0,0,W,H);
       drawBackground();
       drawGround();
 
-      if (gameState === 'running') {
+      if (gameState==='running') {
         frame++;
         score++;
-        speed = 5 + Math.floor(score / 400) * 0.5;
+
+        // Speed: starts at 5, cap at 9, slower ramp
+        speed = Math.min(9, 5 + score / 1200);
+
+        // Rapidash boost applies temporary speed surge
+        const displaySpeed = (boostType==='rapidash') ? Math.min(speed+2.5, 11) : speed;
 
         // Physics
         meowth.vy += meowth.gravity;
         meowth.y += meowth.vy;
-        if (meowth.y >= GROUND) {
-          meowth.y = GROUND;
-          meowth.vy = 0;
-          meowth.jumping = false;
-        }
+        if (meowth.y >= GROUND) { meowth.y=GROUND; meowth.vy=0; meowth.jumping=false; }
 
         // Spawn obstacles
         spawnTimer++;
         if (spawnTimer >= spawnInterval) {
           spawnObstacle();
-          if (Math.random() < 0.5) spawnCoin();
-          spawnTimer = 0;
-          spawnInterval = Math.max(45, 90 - Math.floor(score / 300) * 5);
+          // Coin: spawn SEPARATELY, a bit further right so it never overlaps
+          if (Math.random()<0.55) spawnCoin();
+          spawnTimer=0;
+          // Interval shrinks slightly but has a floor so it never gets insane
+          spawnInterval = Math.max(72, 100 - Math.floor(score/600)*4);
         }
 
+        // Spawn boosts occasionally
+        boostSpawnTimer++;
+        if (boostSpawnTimer >= 320 + Math.random()*120) {
+          spawnBoostItem();
+          boostSpawnTimer=0;
+        }
+
+        // Boost tick
+        tickBoost();
+
         // Move & draw obstacles
-        obstacles = obstacles.filter(ob => ob.x + ob.w > -10);
-        obstacles.forEach(ob => {
-          ob.x -= speed;
-          ob.draw(ob);
-          // collision
-          const mw = meowth.ducking ? 40 : meowth.w;
-          const mh = meowth.ducking ? 28 : meowth.h;
-          const fakeM = {x: meowth.x, y: meowth.y, w: mw, h: mh};
-          if (collides(fakeM, ob)) {
-            gameState = 'dead';
-            hiScore = Math.max(hiScore, score);
-            spawnParticle(meowth.x+22, meowth.y-meowth.h/2, '#f5c842');
+        obstacles = obstacles.filter(ob=>ob.x+ob.w>-10);
+        obstacles.forEach(ob=>{
+          ob.x -= displaySpeed;
+          drawObstacle(ob);
+          if (!meowth.ghost) {
+            const mw=meowth.ducking?40:meowth.w, mh=meowth.ducking?28:meowth.h;
+            if (collides({x:meowth.x,y:meowth.y,w:mw,h:mh}, ob)) {
+              if (meowth.shielded) {
+                // Shield absorbs one hit
+                meowth.shielded=false;
+                boostActive=false; boostType=null;
+                spawnParticle(meowth.x+22, meowth.y-meowth.h/2, '#ff80b0', 14);
+                ob.x=-200; // remove obstacle
+              } else {
+                gameState='dead';
+                hiScore=Math.max(hiScore,score);
+                spawnParticle(meowth.x+22, meowth.y-meowth.h/2, '#f5c842');
+              }
+            }
           }
         });
 
-        // Move & draw coins
-        coinItems = coinItems.filter(c => c.x > -20 && !c.collected);
-        coinItems.forEach(c => {
-          c.x -= speed;
+        // Move & draw coins (above ground, never clipped inside obstacle)
+        coinItems = coinItems.filter(c=>c.x>-20&&!c.collected);
+        coinItems.forEach(c=>{
+          c.x -= displaySpeed;
           drawCoin(c);
-          // coin collection
           if (!c.collected &&
-            meowth.x + meowth.w > c.x && meowth.x < c.x + c.w &&
-            meowth.y > c.y && meowth.y - meowth.h < c.y + c.h) {
-            c.collected = true;
-            coins++;
-            score += 50;
+              meowth.x+meowth.w>c.x && meowth.x<c.x+c.w &&
+              meowth.y>c.y && meowth.y-meowth.h<c.y+c.h) {
+            c.collected=true; coins++; score+=50;
             spawnParticle(c.x+8, c.y+8, '#f5d020');
           }
         });
 
+        // Move & draw boost items
+        boostItems = boostItems.filter(b=>b.x>-60&&!b.collected);
+        boostItems.forEach(b=>{
+          b.x -= displaySpeed;
+          drawBoostItem(b);
+          if (!b.collected &&
+              meowth.x+meowth.w>b.x && meowth.x<b.x+b.w &&
+              meowth.y>b.y && meowth.y-meowth.h<b.y+b.h) {
+            b.collected=true;
+            boostLabel=b.label;
+            activateBoost(b.id, b.duration);
+            spawnParticle(b.x+20, b.y+20, b.color, 14);
+          }
+        });
+
         // Particles
-        particles = particles.filter(p => p.life > 0.01);
-        particles.forEach(p => {
-          p.x += p.vx; p.y += p.vy; p.vy += 0.2; p.life -= 0.05;
-          const r = Math.max(0, p.r * p.life);
-          if (r <= 0) return;
-          ctx.globalAlpha = Math.max(0, p.life);
-          ctx.fillStyle = p.color;
-          ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, Math.PI*2); ctx.fill();
-          ctx.globalAlpha = 1;
+        particles=particles.filter(p=>p.life>0.01);
+        particles.forEach(p=>{
+          p.x+=p.vx; p.y+=p.vy; p.vy+=0.2; p.life-=0.05;
+          const r=Math.max(0,p.r*p.life); if(r<=0) return;
+          ctx.globalAlpha=Math.max(0,p.life);
+          ctx.fillStyle=p.color;
+          ctx.beginPath(); ctx.arc(p.x,p.y,r,0,Math.PI*2); ctx.fill();
+          ctx.globalAlpha=1;
         });
 
         updateScoreDisplay();
