@@ -504,6 +504,129 @@
     @media (max-width: 480px) {
       .features-grid { grid-template-columns: 1fr; }
     }
+
+    /* ── GAME SECTION ── */
+    #game {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 80px 48px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .game-wrapper {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 32px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .game-wrapper::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 3px;
+      background: linear-gradient(90deg, var(--accent-namer), var(--accent-mini));
+    }
+
+    .game-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .game-title {
+      font-size: 1.1rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+    }
+
+    .score-board {
+      display: flex;
+      gap: 20px;
+      align-items: center;
+    }
+
+    .score-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      background: var(--tag-bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 8px 18px;
+      min-width: 80px;
+    }
+
+    .score-label {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.62rem;
+      color: var(--muted);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      margin-bottom: 2px;
+    }
+
+    .score-value {
+      font-family: 'DM Mono', monospace;
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    #score-display { color: var(--accent-namer); }
+    #hi-score-display { color: var(--accent-mini); }
+
+    #game-canvas {
+      display: block;
+      width: 100%;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: #0a0a0c;
+      cursor: pointer;
+    }
+
+    .game-controls {
+      margin-top: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .game-hint {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.72rem;
+      color: var(--muted);
+    }
+
+    .game-hint kbd {
+      background: var(--tag-bg);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 2px 7px;
+      color: var(--text);
+    }
+
+    .game-badge {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.68rem;
+      color: var(--accent-namer);
+      background: rgba(245,166,35,0.1);
+      border: 1px solid rgba(245,166,35,0.2);
+      border-radius: 20px;
+      padding: 4px 12px;
+    }
+
+    @media (max-width: 768px) {
+      #game { padding: 60px 24px; }
+    }
   </style>
 </head>
 <body>
@@ -516,6 +639,7 @@
     <li><a href="#features">Features</a></li>
     <li><a href="#commands">Commands</a></li>
     <li><a href="#links">Links</a></li>
+    <li><a href="#game">🎮 Play</a></li>
   </ul>
 </nav>
 
@@ -906,6 +1030,39 @@
   </div>
 </section>
 
+<hr class="divider">
+
+<!-- MEOWTH RUNNER GAME -->
+<section id="game" style="max-width:900px;margin:0 auto;padding:80px 48px;position:relative;z-index:1;">
+  <p class="section-label">// Mini Game</p>
+  <h2 class="section-title">Meowth Runner</h2>
+
+  <div class="game-wrapper">
+    <div class="game-header">
+      <div class="game-title">🐱 Pay Day Runner</div>
+      <div class="score-board">
+        <div class="score-item">
+          <span class="score-label">Score</span>
+          <span class="score-value" id="score-display">0</span>
+        </div>
+        <div class="score-item">
+          <span class="score-label">Best</span>
+          <span class="score-value" id="hi-score-display">0</span>
+        </div>
+      </div>
+    </div>
+
+    <canvas id="game-canvas" width="820" height="220"></canvas>
+
+    <div class="game-controls">
+      <span class="game-hint">
+        <kbd>Space</kbd> or <kbd>↑</kbd> to jump · <kbd>↓</kbd> to duck · Tap canvas on mobile
+      </span>
+      <span class="game-badge">⭐ Coins collected: <span id="coin-count">0</span></span>
+    </div>
+  </div>
+</section>
+
 <!-- FOOTER -->
 <footer>
   <div class="footer-left">© 2025 Meowth Bots · Built for the Pokétwo community</div>
@@ -917,20 +1074,477 @@
 </footer>
 
 <script>
-  function switchTab(tab, btn) {
-    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
-    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-    document.getElementById('tab-' + tab).classList.add('active');
-    btn.classList.add('active');
-  }
+  // ── MEOWTH RUNNER GAME ──
+  (function() {
+    const canvas = document.getElementById('game-canvas');
+    const ctx = canvas.getContext('2d');
+    const W = canvas.width, H = canvas.height;
+    const GROUND = H - 40;
 
-  function toggleSection(header) {
-    const body = header.nextElementSibling;
-    const arrow = header.querySelector('.ch-arrow');
-    const isOpen = body.classList.contains('open');
-    body.classList.toggle('open', !isOpen);
-    arrow.style.transform = isOpen ? '' : 'rotate(180deg)';
-  }
+    let score = 0, hiScore = 0, coins = 0;
+    let gameState = 'idle'; // idle | running | dead
+    let frame = 0, speed = 5, spawnTimer = 0, spawnInterval = 90;
+
+    // ── MEOWTH SPRITE ──
+    const meowthSprite = new Image();
+    const meowthDuckSprite = new Image();
+    let spriteLoaded = false;
+    let duckLoaded = false;
+
+    // Official Meowth sprite from PokeAPI (Pokémon #52)
+    meowthSprite.crossOrigin = 'anonymous';
+    meowthSprite.src = 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/52.png';
+    meowthSprite.onload = () => { spriteLoaded = true; };
+
+    // Persian sprite for ducking (low, sleek form - Meowth's evolution, stays low)
+    meowthDuckSprite.crossOrigin = 'anonymous';
+    meowthDuckSprite.src = 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/53.png';
+    meowthDuckSprite.onload = () => { duckLoaded = true; };
+    const meowth = {
+      x: 80, y: GROUND,
+      w: 44, h: 48,
+      vy: 0, gravity: 0.7,
+      jumping: false, ducking: false,
+      animFrame: 0, animTimer: 0,
+      get top() { return this.y - this.h; },
+      get bottom() { return this.y; },
+      get right() { return this.x + this.w; },
+      get left() { return this.x; }
+    };
+
+    let obstacles = [];
+    let coinItems = [];
+    let particles = [];
+    let clouds = [{x:200,y:40,s:1},{x:500,y:25,s:0.8},{x:750,y:55,s:1.2}];
+    let stars = Array.from({length:30}, () => ({x:Math.random()*W, y:Math.random()*(GROUND-60), a:Math.random()}));
+
+    // Obstacle types
+    const OBSTACLES = [
+      { type:'cactus',   w:22, h:50, color:'#3d8b37', draw: drawCactus },
+      { type:'rock',     w:34, h:26, color:'#7a6a5a', draw: drawRock },
+      { type:'pidgey',   w:36, h:28, color:'#c8a87a', draw: drawPidgey, fly: true },
+      { type:'mewtwo',   w:32, h:44, color:'#b07ab8', draw: drawMewtwo },
+      { type:'pokeball', w:26, h:26, color:'#e05050', draw: drawPokeball },
+    ];
+
+    function drawCactus(ob) {
+      ctx.fillStyle = '#3d8b37';
+      ctx.fillRect(ob.x+8, ob.y-ob.h, 6, ob.h);
+      ctx.fillRect(ob.x+2, ob.y-ob.h+14, 8, 5);
+      ctx.fillRect(ob.x+14, ob.y-ob.h+20, 8, 5);
+      ctx.fillRect(ob.x, ob.y-ob.h+14, 4, 16);
+      ctx.fillRect(ob.x+18, ob.y-ob.h+20, 4, 12);
+      ctx.fillStyle = '#2e6b2a';
+      ctx.fillRect(ob.x+9, ob.y-ob.h, 2, ob.h);
+    }
+
+    function drawRock(ob) {
+      ctx.fillStyle = '#7a6a5a';
+      ctx.beginPath();
+      ctx.ellipse(ob.x+ob.w/2, ob.y-ob.h/2, ob.w/2, ob.h/2, 0, 0, Math.PI*2);
+      ctx.fill();
+      ctx.fillStyle = '#9a8a7a';
+      ctx.beginPath();
+      ctx.ellipse(ob.x+ob.w/2-4, ob.y-ob.h/2-4, ob.w/3, ob.h/3, -0.3, 0, Math.PI*2);
+      ctx.fill();
+    }
+
+    function drawPidgey(ob) {
+      const bx = ob.x, by = ob.y - ob.h;
+      const flap = Math.sin(frame * 0.25) * 5;
+      // body
+      ctx.fillStyle = '#c8a87a';
+      ctx.beginPath(); ctx.ellipse(bx+18, by+18, 14, 10, 0, 0, Math.PI*2); ctx.fill();
+      // head
+      ctx.fillStyle = '#d4b88a';
+      ctx.beginPath(); ctx.arc(bx+28, by+10, 8, 0, Math.PI*2); ctx.fill();
+      // wing
+      ctx.fillStyle = '#b09060';
+      ctx.beginPath();
+      ctx.moveTo(bx+14, by+14);
+      ctx.lineTo(bx+4, by+8+flap);
+      ctx.lineTo(bx+18, by+22);
+      ctx.fill();
+      // beak
+      ctx.fillStyle = '#e8a040';
+      ctx.fillRect(bx+34, by+9, 6, 3);
+      // eye
+      ctx.fillStyle = '#1a1a1a';
+      ctx.beginPath(); ctx.arc(bx+30, by+9, 2, 0, Math.PI*2); ctx.fill();
+    }
+
+    function drawMewtwo(ob) {
+      const bx = ob.x, by = ob.y - ob.h;
+      // body
+      ctx.fillStyle = '#b07ab8';
+      ctx.beginPath(); ctx.ellipse(bx+16, by+28, 10, 14, 0, 0, Math.PI*2); ctx.fill();
+      // head
+      ctx.fillStyle = '#c890d0';
+      ctx.beginPath(); ctx.arc(bx+16, by+12, 11, 0, Math.PI*2); ctx.fill();
+      // ears
+      ctx.fillStyle = '#9060a0';
+      ctx.beginPath(); ctx.moveTo(bx+8,by+4); ctx.lineTo(bx+4,by-4); ctx.lineTo(bx+13,by+6); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(bx+24,by+4); ctx.lineTo(bx+28,by-4); ctx.lineTo(bx+19,by+6); ctx.fill();
+      // eyes
+      ctx.fillStyle = '#60a0e0';
+      ctx.beginPath(); ctx.arc(bx+11, by+12, 3, 0, Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.arc(bx+21, by+12, 3, 0, Math.PI*2); ctx.fill();
+      // tail
+      ctx.strokeStyle = '#9060a0'; ctx.lineWidth=3;
+      ctx.beginPath(); ctx.moveTo(bx+16, by+40); ctx.quadraticCurveTo(bx+30, by+50, bx+28, by+38); ctx.stroke();
+      // glow aura
+      ctx.strokeStyle = 'rgba(176,122,184,0.3)'; ctx.lineWidth=6;
+      ctx.beginPath(); ctx.arc(bx+16, by+20, 18, 0, Math.PI*2); ctx.stroke();
+    }
+
+    function drawPokeball(ob) {
+      const cx = ob.x+ob.w/2, cy = ob.y-ob.h/2, r = ob.w/2;
+      ctx.fillStyle = '#e05050';
+      ctx.beginPath(); ctx.arc(cx, cy, r, Math.PI, 0); ctx.fill();
+      ctx.fillStyle = '#f0f0f0';
+      ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI); ctx.fill();
+      ctx.strokeStyle = '#222'; ctx.lineWidth=2;
+      ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI*2); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(cx-r, cy); ctx.lineTo(cx+r, cy); ctx.stroke();
+      ctx.fillStyle = '#fff';
+      ctx.beginPath(); ctx.arc(cx, cy, r*0.3, 0, Math.PI*2); ctx.fill();
+      ctx.strokeStyle = '#222'; ctx.lineWidth=1.5;
+      ctx.beginPath(); ctx.arc(cx, cy, r*0.3, 0, Math.PI*2); ctx.stroke();
+    }
+
+    function drawCoin(c) {
+      const pulse = 0.9 + Math.sin(frame*0.15 + c.offset)*0.1;
+      ctx.save();
+      ctx.translate(c.x+8, c.y+8);
+      ctx.scale(pulse, pulse);
+      // coin body
+      ctx.fillStyle = '#f5d020';
+      ctx.beginPath(); ctx.arc(0,0,8,0,Math.PI*2); ctx.fill();
+      ctx.fillStyle = '#f7a32b';
+      ctx.beginPath(); ctx.arc(0,0,5,0,Math.PI*2); ctx.fill();
+      // ¥ symbol (pay day!)
+      ctx.fillStyle = '#c8860a';
+      ctx.font = 'bold 8px sans-serif';
+      ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.fillText('¥', 0, 0);
+      ctx.restore();
+    }
+
+    function drawMeowth() {
+      const m = meowth;
+      const isDucking = m.ducking;
+      const spriteW = isDucking ? 72 : 64;
+      const spriteH = isDucking ? 40 : 64;
+      const drawX = m.x - 10;
+      const drawY = m.y - spriteH;
+
+      // Bob animation when running on ground
+      const bob = (!m.jumping && !isDucking) ? Math.sin(frame * 0.28) * 2 : 0;
+
+      ctx.save();
+
+      // Squash/stretch on jump peak and landing
+      let scaleX = 1, scaleY = 1;
+      if (m.jumping && m.vy < 0) { scaleX = 0.88; scaleY = 1.12; } // stretch going up
+      if (m.jumping && m.vy > 4)  { scaleX = 1.12; scaleY = 0.88; } // squash falling
+
+      ctx.translate(drawX + spriteW/2, drawY + spriteH/2 + bob);
+      ctx.scale(scaleX, scaleY);
+
+      // Shadow under Meowth
+      ctx.fillStyle = 'rgba(0,0,0,0.25)';
+      ctx.beginPath();
+      ctx.ellipse(0, spriteH/2 + (m.y - (drawY + spriteH/2 + bob)), spriteW*0.4*scaleX, 5, 0, 0, Math.PI*2);
+      ctx.fill();
+
+      if (isDucking && duckLoaded) {
+        ctx.drawImage(meowthDuckSprite, -spriteW/2, -spriteH/2, spriteW, spriteH);
+      } else if (spriteLoaded) {
+        ctx.drawImage(meowthSprite, -spriteW/2, -spriteH/2, spriteW, spriteH);
+      } else {
+        // Fallback circle if sprite not loaded yet
+        ctx.fillStyle = '#f5c842';
+        ctx.beginPath(); ctx.arc(0, 0, 20, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = '#222';
+        ctx.font = '20px sans-serif';
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText('🐱', 0, 0);
+      }
+
+      // Coin flash effect when collecting
+      if (particles.some(p => p.color === '#f5d020' && p.life > 0.7)) {
+        ctx.globalAlpha = 0.3;
+        ctx.fillStyle = '#f5d020';
+        ctx.beginPath(); ctx.arc(0, 0, 28, 0, Math.PI*2); ctx.fill();
+        ctx.globalAlpha = 1;
+      }
+
+      ctx.restore();
+    }
+
+    function spawnObstacle() {
+      const type = OBSTACLES[Math.floor(Math.random() * OBSTACLES.length)];
+      const isFly = type.fly;
+      const flyHeight = isFly ? 55 + Math.floor(Math.random() * 30) : 0;
+      obstacles.push({
+        x: W + 10,
+        y: GROUND - flyHeight,
+        w: type.w, h: type.h,
+        type: type.type,
+        draw: type.draw,
+        fly: isFly
+      });
+    }
+
+    function spawnCoin() {
+      coinItems.push({
+        x: W + 10,
+        y: GROUND - 30 - Math.random() * 60,
+        w: 16, h: 16,
+        offset: Math.random() * Math.PI * 2,
+        collected: false
+      });
+    }
+
+    function spawnParticle(x, y, color) {
+      for(let i=0;i<8;i++) {
+        particles.push({
+          x, y,
+          vx: (Math.random()-0.5)*6,
+          vy: -Math.random()*5-1,
+          life: 1, color,
+          r: 3+Math.random()*4
+        });
+      }
+    }
+
+    function collides(a, b) {
+      const pad = 8;
+      return (
+        a.x + pad < b.x + b.w - pad &&
+        a.x + a.w - pad > b.x + pad &&
+        (a.y - a.h) + pad < b.y &&
+        a.y - pad > b.y - b.h
+      );
+    }
+
+    function drawGround() {
+      // gradient ground
+      const grd = ctx.createLinearGradient(0, GROUND, 0, H);
+      grd.addColorStop(0, '#1e1e28');
+      grd.addColorStop(1, '#0a0a0e');
+      ctx.fillStyle = grd;
+      ctx.fillRect(0, GROUND, W, H-GROUND);
+      // ground line
+      ctx.strokeStyle = '#3a3a50';
+      ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(0, GROUND); ctx.lineTo(W, GROUND); ctx.stroke();
+      // dashes
+      ctx.strokeStyle = '#2a2a38';
+      ctx.lineWidth = 1;
+      for(let i=0;i<W;i+=40) {
+        ctx.beginPath(); ctx.moveTo(i,GROUND+6); ctx.lineTo(i+20,GROUND+6); ctx.stroke();
+      }
+    }
+
+    function drawBackground() {
+      // sky gradient
+      const sky = ctx.createLinearGradient(0, 0, 0, GROUND);
+      sky.addColorStop(0, '#07070d');
+      sky.addColorStop(1, '#0f0f1a');
+      ctx.fillStyle = sky;
+      ctx.fillRect(0, 0, W, GROUND);
+
+      // stars twinkle
+      stars.forEach(s => {
+        s.a += 0.02;
+        const alpha = 0.3 + Math.abs(Math.sin(s.a)) * 0.7;
+        ctx.fillStyle = `rgba(200,200,255,${alpha})`;
+        ctx.fillRect(s.x, s.y, 1.5, 1.5);
+      });
+
+      // clouds (slow drift)
+      clouds.forEach(c => {
+        c.x -= 0.3;
+        if(c.x < -120) c.x = W + 60;
+        drawCloud(c.x, c.y, c.s);
+      });
+    }
+
+    function drawCloud(x, y, s) {
+      ctx.fillStyle = 'rgba(80,80,120,0.3)';
+      ctx.beginPath(); ctx.arc(x+40*s, y+15*s, 20*s, 0, Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.arc(x+60*s, y+10*s, 25*s, 0, Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.arc(x+80*s, y+15*s, 18*s, 0, Math.PI*2); ctx.fill();
+    }
+
+    function drawUI() {
+      if (gameState === 'idle') {
+        ctx.fillStyle = 'rgba(0,0,0,0.5)';
+        ctx.fillRect(0,0,W,H);
+        ctx.fillStyle = '#f5c842';
+        ctx.font = 'bold 28px Syne, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('🐱 MEOWTH RUNNER', W/2, H/2 - 28);
+        ctx.fillStyle = '#e8e8f0';
+        ctx.font = '16px Syne, sans-serif';
+        ctx.fillText('Press Space, ↑, or Tap to start!', W/2, H/2+10);
+        ctx.fillStyle = '#6b6b80';
+        ctx.font = '13px DM Mono, monospace';
+        ctx.fillText('Avoid obstacles · Collect ¥ coins · Duck with ↓', W/2, H/2+40);
+      }
+
+      if (gameState === 'dead') {
+        ctx.fillStyle = 'rgba(0,0,0,0.55)';
+        ctx.fillRect(0,0,W,H);
+        ctx.fillStyle = '#e05050';
+        ctx.font = 'bold 26px Syne, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('💥 GAME OVER', W/2, H/2-24);
+        ctx.fillStyle = '#e8e8f0';
+        ctx.font = '15px Syne, sans-serif';
+        ctx.fillText(`Score: ${score}  |  Best: ${hiScore}`, W/2, H/2+8);
+        ctx.fillStyle = '#f5a623';
+        ctx.font = '13px DM Mono, monospace';
+        ctx.fillText('Press Space or Tap to try again!', W/2, H/2+34);
+      }
+    }
+
+    function updateScoreDisplay() {
+      document.getElementById('score-display').textContent = score;
+      document.getElementById('hi-score-display').textContent = hiScore;
+      document.getElementById('coin-count').textContent = coins;
+    }
+
+    function jump() {
+      if (!meowth.jumping) {
+        meowth.vy = -14;
+        meowth.jumping = true;
+      }
+    }
+
+    function startGame() {
+      score = 0; coins = 0;
+      speed = 5; frame = 0;
+      spawnTimer = 0; spawnInterval = 90;
+      obstacles = [];
+      coinItems = [];
+      particles = [];
+      meowth.y = GROUND;
+      meowth.vy = 0;
+      meowth.jumping = false;
+      meowth.ducking = false;
+      gameState = 'running';
+    }
+
+    function handleInput(duck) {
+      if (gameState === 'idle' || gameState === 'dead') {
+        startGame();
+        return;
+      }
+      if (duck) {
+        meowth.ducking = true;
+      } else {
+        meowth.ducking = false;
+        jump();
+      }
+    }
+
+    // keyboard
+    document.addEventListener('keydown', e => {
+      if (e.code === 'Space' || e.key === 'ArrowUp') { e.preventDefault(); handleInput(false); }
+      if (e.key === 'ArrowDown') { e.preventDefault(); handleInput(true); }
+    });
+    document.addEventListener('keyup', e => {
+      if (e.key === 'ArrowDown') meowth.ducking = false;
+    });
+
+    // touch / click
+    canvas.addEventListener('click', () => handleInput(false));
+    canvas.addEventListener('touchstart', e => { e.preventDefault(); handleInput(false); }, {passive:false});
+
+    function loop() {
+      ctx.clearRect(0, 0, W, H);
+      drawBackground();
+      drawGround();
+
+      if (gameState === 'running') {
+        frame++;
+        score++;
+        speed = 5 + Math.floor(score / 400) * 0.5;
+
+        // Physics
+        meowth.vy += meowth.gravity;
+        meowth.y += meowth.vy;
+        if (meowth.y >= GROUND) {
+          meowth.y = GROUND;
+          meowth.vy = 0;
+          meowth.jumping = false;
+        }
+
+        // Spawn obstacles
+        spawnTimer++;
+        if (spawnTimer >= spawnInterval) {
+          spawnObstacle();
+          if (Math.random() < 0.5) spawnCoin();
+          spawnTimer = 0;
+          spawnInterval = Math.max(45, 90 - Math.floor(score / 300) * 5);
+        }
+
+        // Move & draw obstacles
+        obstacles = obstacles.filter(ob => ob.x + ob.w > -10);
+        obstacles.forEach(ob => {
+          ob.x -= speed;
+          ob.draw(ob);
+          // collision
+          const mw = meowth.ducking ? 40 : meowth.w;
+          const mh = meowth.ducking ? 28 : meowth.h;
+          const fakeM = {x: meowth.x, y: meowth.y, w: mw, h: mh};
+          if (collides(fakeM, ob)) {
+            gameState = 'dead';
+            hiScore = Math.max(hiScore, score);
+            spawnParticle(meowth.x+22, meowth.y-meowth.h/2, '#f5c842');
+          }
+        });
+
+        // Move & draw coins
+        coinItems = coinItems.filter(c => c.x > -20 && !c.collected);
+        coinItems.forEach(c => {
+          c.x -= speed;
+          drawCoin(c);
+          // coin collection
+          if (!c.collected &&
+            meowth.x + meowth.w > c.x && meowth.x < c.x + c.w &&
+            meowth.y > c.y && meowth.y - meowth.h < c.y + c.h) {
+            c.collected = true;
+            coins++;
+            score += 50;
+            spawnParticle(c.x+8, c.y+8, '#f5d020');
+          }
+        });
+
+        // Particles
+        particles = particles.filter(p => p.life > 0.01);
+        particles.forEach(p => {
+          p.x += p.vx; p.y += p.vy; p.vy += 0.2; p.life -= 0.05;
+          const r = Math.max(0, p.r * p.life);
+          if (r <= 0) return;
+          ctx.globalAlpha = Math.max(0, p.life);
+          ctx.fillStyle = p.color;
+          ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, Math.PI*2); ctx.fill();
+          ctx.globalAlpha = 1;
+        });
+
+        updateScoreDisplay();
+      }
+
+      drawMeowth();
+      drawUI();
+      requestAnimationFrame(loop);
+    }
+
+    loop();
+  })();
 </script>
 
 </body>
