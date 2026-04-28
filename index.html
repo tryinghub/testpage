@@ -1052,7 +1052,7 @@
       </div>
     </div>
 
-    <canvas id="game-canvas" width="820" height="220"></canvas>
+    <canvas id="game-canvas" width="820" height="300"></canvas>
 
     <div class="game-controls">
       <span class="game-hint">
@@ -1125,7 +1125,7 @@
 
     const meowth = {
       x: 80, y: GROUND,
-      w: 44, h: 48,
+      w: 72, h: 80,
       vy: 0, gravity: 0.7,
       jumping: false, ducking: false,
       shielded: false, ghost: false
@@ -1139,13 +1139,13 @@
     // Each obstacle y is GROUND (ground) or GROUND - flyHeight (flying)
     // We'll pick from a weighted pool
     const OB_TYPES = [
-      { id:'maractus',  w:38, h:52, spr:()=>sprMaractus,  fly:false },
-      { id:'golem',     w:44, h:38, spr:()=>sprGolem,     fly:false },
-      { id:'voltorb',   w:32, h:32, spr:()=>sprVoltorb,   fly:false },
-      { id:'electrode', w:36, h:36, spr:()=>sprElectrode, fly:false },
-      { id:'pidgey',    w:36, h:32, spr:()=>sprPidgey,    fly:true, flyH:()=>55+Math.random()*20 },
-      { id:'pidgeotto', w:40, h:36, spr:()=>sprPidgeotto, fly:true, flyH:()=>60+Math.random()*25 },
-      { id:'pidgeot',   w:46, h:42, spr:()=>sprPidgeot,   fly:true, flyH:()=>50+Math.random()*30 },
+      { id:'maractus',  w:72, h:96, spr:()=>sprMaractus,  fly:false },
+      { id:'golem',     w:80, h:72, spr:()=>sprGolem,     fly:false },
+      { id:'voltorb',   w:60, h:60, spr:()=>sprVoltorb,   fly:false },
+      { id:'electrode', w:68, h:68, spr:()=>sprElectrode, fly:false },
+      { id:'pidgey',    w:68, h:60, spr:()=>sprPidgey,    fly:true, flyH:()=>80+Math.random()*25 },
+      { id:'pidgeotto', w:76, h:68, spr:()=>sprPidgeotto, fly:true, flyH:()=>88+Math.random()*30 },
+      { id:'pidgeot',   w:88, h:80, spr:()=>sprPidgeot,   fly:true, flyH:()=>75+Math.random()*35 },
     ];
 
     // ── BOOST TYPES ──
@@ -1225,8 +1225,8 @@
     function drawMeowth() {
       const m = meowth;
       const isDucking = m.ducking;
-      const spriteW = isDucking ? 72 : 64;
-      const spriteH = isDucking ? 40 : 64;
+      const spriteW = isDucking ? 110 : 88;
+      const spriteH = isDucking ? 60  : 88;
       const drawX = m.x - 10;
       const drawY = m.y - spriteH;
       const bob = (!m.jumping && !isDucking) ? Math.sin(frame * 0.28) * 2 : 0;
@@ -1321,8 +1321,8 @@
       // Spawn boost clearly in the air at jump-reachable height
       boostItems.push({
         x: W + 60 + Math.random()*60,
-        y: GROUND - 65,
-        w: 40, h: 40,
+        y: GROUND - 90,
+        w: 72, h: 72,
         id: type.id,
         spr: type.spr,
         color: type.color,
@@ -1534,7 +1534,7 @@
           ob.x -= displaySpeed;
           drawObstacle(ob);
           if (!meowth.ghost) {
-            const mw=meowth.ducking?40:meowth.w, mh=meowth.ducking?28:meowth.h;
+            const mw=meowth.ducking?56:meowth.w, mh=meowth.ducking?48:meowth.h;
             if (collides({x:meowth.x,y:meowth.y,w:mw,h:mh}, ob)) {
               if (meowth.shielded) {
                 // Shield absorbs one hit
