@@ -1136,16 +1136,17 @@
     let stars = Array.from({length:30}, ()=>({x:Math.random()*W, y:Math.random()*(GROUND-60), a:Math.random()}));
 
     // ── OBSTACLE TYPES ──
-    // Each obstacle y is GROUND (ground) or GROUND - flyHeight (flying)
-    // We'll pick from a weighted pool
+    // w/h = hitbox size (tight, matches actual creature).
+    // sprW/sprH = draw size (larger so the sprite fills well despite PokeAPI transparent padding).
+    // Sprite is drawn centered on the hitbox.
     const OB_TYPES = [
-      { id:'maractus',  w:56, h:72, spr:()=>sprMaractus,  fly:false },
-      { id:'golem',     w:60, h:56, spr:()=>sprGolem,     fly:false },
-      { id:'voltorb',   w:52, h:52, spr:()=>sprVoltorb,   fly:false },
-      { id:'electrode', w:52, h:52, spr:()=>sprElectrode, fly:false },
-      { id:'pidgey',    w:52, h:48, spr:()=>sprPidgey,    fly:true, flyH:()=>55+Math.random()*20 },
-      { id:'pidgeotto', w:60, h:52, spr:()=>sprPidgeotto, fly:true, flyH:()=>100+Math.random()*25 },
-      { id:'pidgeot',   w:68, h:60, spr:()=>sprPidgeot,   fly:true, flyH:()=>150+Math.random()*20 },
+      { id:'maractus',  w:32, h:58, sprW:80,  sprH:80,  spr:()=>sprMaractus,  fly:false },
+      { id:'golem',     w:38, h:42, sprW:72,  sprH:72,  spr:()=>sprGolem,     fly:false },
+      { id:'voltorb',   w:34, h:34, sprW:64,  sprH:64,  spr:()=>sprVoltorb,   fly:false },
+      { id:'electrode', w:34, h:34, sprW:64,  sprH:64,  spr:()=>sprElectrode, fly:false },
+      { id:'pidgey',    w:30, h:28, sprW:60,  sprH:60,  spr:()=>sprPidgey,    fly:true, flyH:()=>55+Math.random()*20 },
+      { id:'pidgeotto', w:36, h:32, sprW:68,  sprH:68,  spr:()=>sprPidgeotto, fly:true, flyH:()=>100+Math.random()*25 },
+      { id:'pidgeot',   w:40, h:36, sprW:76,  sprH:76,  spr:()=>sprPidgeot,   fly:true, flyH:()=>150+Math.random()*20 },
     ];
 
     // ── BOOST TYPES ──
@@ -1170,14 +1171,18 @@
 
     function drawObstacle(ob) {
       const img = ob.spr();
-      const drawX = ob.x;
-      const drawY = ob.y - ob.h;
+      // Center the (larger) sprite over the hitbox
+      const hitCX = ob.x + ob.w / 2;
+      const hitCY = ob.y - ob.h / 2;
+      const drawX = hitCX - ob.sprW / 2;
+      const drawY = hitCY - ob.sprH / 2;
+
       // Voltorb/Electrode spin
       if (ob.id === 'voltorb' || ob.id === 'electrode') {
         ctx.save();
-        ctx.translate(drawX + ob.w/2, drawY + ob.h/2);
+        ctx.translate(hitCX, hitCY);
         ctx.rotate(frame * 0.08);
-        if (img._loaded()) ctx.drawImage(img, -ob.w/2, -ob.h/2, ob.w, ob.h);
+        if (img._loaded()) ctx.drawImage(img, -ob.sprW/2, -ob.sprH/2, ob.sprW, ob.sprH);
         else { ctx.fillStyle='#e05050'; ctx.beginPath(); ctx.arc(0,0,ob.w/2,0,Math.PI*2); ctx.fill(); }
         ctx.restore();
         return;
@@ -1185,10 +1190,10 @@
       // Flying birds: flap animation offset
       if (ob.fly) {
         const flapY = Math.sin(frame*0.3 + ob.flapOff) * 3;
-        drawSprite(img, drawX, drawY + flapY, ob.w, ob.h);
+        drawSprite(img, drawX, drawY + flapY, ob.sprW, ob.sprH);
         return;
       }
-      drawSprite(img, drawX, drawY, ob.w, ob.h);
+      drawSprite(img, drawX, drawY, ob.sprW, ob.sprH);
     }
 
     function drawBoostItem(b) {
@@ -1299,6 +1304,7 @@
         x: W + 10,
         y: GROUND - flyH,
         w: type.w, h: type.h,
+        sprW: type.sprW, sprH: type.sprH,
         id: type.id,
         spr: type.spr,
         fly: type.fly,
@@ -1368,19 +1374,15 @@
     // ── COLLISION ──
     // a and b both use bottom-origin Y (y = bottom edge, y - h = top edge)
     function collides(a, b) {
-      // Player (a) gets a small uniform pad
-      const aPad = 8;
-      const aRight  = a.x + a.w - aPad;
-      const aLeft   = a.x + aPad;
-      const aBottom = a.y - aPad;
-      const aTop    = a.y - a.h + aPad;
-      // Obstacle (b) gets extra horizontal padding to halve its effective width
-      const bPadX = Math.floor(b.w / 4); // cuts ~25% from each side = ~50% narrower total
-      const bPadY = 8;
-      const bRight  = b.x + b.w - bPadX;
-      const bLeft   = b.x + bPadX;
-      const bBottom = b.y - bPadY;
-      const bTop    = b.y - b.h + bPadY;
+      const pad = 4;
+      const aRight  = a.x + a.w - pad;
+      const aLeft   = a.x + pad;
+      const aBottom = a.y - pad;
+      const aTop    = a.y - a.h + pad;
+      const bRight  = b.x + b.w - pad;
+      const bLeft   = b.x + pad;
+      const bBottom = b.y - pad;
+      const bTop    = b.y - b.h + pad;
       return aRight > bLeft && aLeft < bRight && aBottom > bTop && aTop < bBottom;
     }
 
