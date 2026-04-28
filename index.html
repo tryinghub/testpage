@@ -1368,15 +1368,19 @@
     // ── COLLISION ──
     // a and b both use bottom-origin Y (y = bottom edge, y - h = top edge)
     function collides(a, b) {
-      const pad = 8;
-      const aRight  = a.x + a.w - pad;
-      const aLeft   = a.x + pad;
-      const aBottom = a.y - pad;
-      const aTop    = a.y - a.h + pad;
-      const bRight  = b.x + b.w - pad;
-      const bLeft   = b.x + pad;
-      const bBottom = b.y - pad;
-      const bTop    = b.y - b.h + pad;
+      // Player (a) gets a small uniform pad
+      const aPad = 8;
+      const aRight  = a.x + a.w - aPad;
+      const aLeft   = a.x + aPad;
+      const aBottom = a.y - aPad;
+      const aTop    = a.y - a.h + aPad;
+      // Obstacle (b) gets extra horizontal padding to halve its effective width
+      const bPadX = Math.floor(b.w / 4); // cuts ~25% from each side = ~50% narrower total
+      const bPadY = 8;
+      const bRight  = b.x + b.w - bPadX;
+      const bLeft   = b.x + bPadX;
+      const bBottom = b.y - bPadY;
+      const bTop    = b.y - b.h + bPadY;
       return aRight > bLeft && aLeft < bRight && aBottom > bTop && aTop < bBottom;
     }
 
