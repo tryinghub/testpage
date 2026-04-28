@@ -1141,11 +1141,11 @@
     const OB_TYPES = [
       { id:'maractus',  w:56, h:72, spr:()=>sprMaractus,  fly:false },
       { id:'golem',     w:60, h:56, spr:()=>sprGolem,     fly:false },
-      { id:'voltorb',   w:48, h:48, spr:()=>sprVoltorb,   fly:false },
+      { id:'voltorb',   w:52, h:52, spr:()=>sprVoltorb,   fly:false },
       { id:'electrode', w:52, h:52, spr:()=>sprElectrode, fly:false },
-      { id:'pidgey',    w:52, h:48, spr:()=>sprPidgey,    fly:true, flyH:()=>80+Math.random()*25 },
-      { id:'pidgeotto', w:60, h:52, spr:()=>sprPidgeotto, fly:true, flyH:()=>88+Math.random()*30 },
-      { id:'pidgeot',   w:68, h:60, spr:()=>sprPidgeot,   fly:true, flyH:()=>75+Math.random()*35 },
+      { id:'pidgey',    w:52, h:48, spr:()=>sprPidgey,    fly:true, flyH:()=>55+Math.random()*20 },
+      { id:'pidgeotto', w:60, h:52, spr:()=>sprPidgeotto, fly:true, flyH:()=>100+Math.random()*25 },
+      { id:'pidgeot',   w:68, h:60, spr:()=>sprPidgeot,   fly:true, flyH:()=>150+Math.random()*20 },
     ];
 
     // ── BOOST TYPES ──
@@ -1352,6 +1352,9 @@
         if (boostType === 'chansey') meowth.shielded = false;
         if (boostType === 'gengar')  meowth.ghost    = false;
         boostType = null;
+        // Grace period: reset spawnTimer so no obstacle spawns immediately after boost
+        spawnTimer = 0;
+        spawnInterval = Math.max(100, 160 - Math.floor(score/600)*5);
       }
     }
 
@@ -1458,8 +1461,8 @@
     }
 
     function startGame() {
-      score=0; coins=0; speed=5; frame=0;
-      spawnTimer=0; spawnInterval=100;
+      score=0; coins=0; speed=3; frame=0;
+      spawnTimer=0; spawnInterval=160;
       obstacles=[]; coinItems=[]; particles=[]; boostItems=[];
       boostActive=false; boostType=null; boostTimer=0;
       boostSpawnTimer=0; boostSpawnInterval = 420 + Math.floor(Math.random()*200);
@@ -1495,11 +1498,11 @@
         frame++;
         score++;
 
-        // Speed: starts at 5, cap at 9, slower ramp
-        speed = Math.min(9, 5 + score / 1200);
+        // Speed: starts at 3, cap at 9, gradual ramp
+        speed = Math.min(9, 3 + score / 800);
 
-        // Slowpoke boost applies slow-mo (obstacles move at half speed)
-        const displaySpeed = (boostType==='jolteon') ? speed * 0.45 : speed;
+        // Slowpoke boost applies mild slow-mo (obstacles move at 70% speed)
+        const displaySpeed = (boostType==='jolteon') ? speed * 0.70 : speed;
 
         // Physics
         meowth.vy += meowth.gravity;
@@ -1513,8 +1516,8 @@
           // Coin: spawn SEPARATELY, a bit further right so it never overlaps
           if (Math.random()<0.55) spawnCoin();
           spawnTimer=0;
-          // Interval shrinks slightly but has a floor so it never gets insane
-          spawnInterval = Math.max(72, 100 - Math.floor(score/600)*4);
+          // Interval shrinks slightly but has a generous floor
+          spawnInterval = Math.max(100, 160 - Math.floor(score/600)*5);
         }
 
         // Spawn boosts occasionally
